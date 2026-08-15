@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN rush_slot_id uuid REFERENCES rush_time_slots(id) ON DELETE SET NULL;
