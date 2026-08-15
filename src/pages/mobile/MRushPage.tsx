@@ -10,7 +10,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader,
   AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
-import { Zap, Clock, Package, Flame, CalendarClock, ShoppingBag, CheckCircle2, Rocket, Bell, ListOrdered, Eye } from 'lucide-react';
+import { Zap, Clock, Package, Flame, CalendarClock, ShoppingBag, CheckCircle2, Rocket, Bell, ListOrdered, Eye, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
@@ -850,7 +850,7 @@ export default function MRushPage() {
   // 原自动触发逻辑（auto-rush-early）已移除，用户在抢购时段内手动操作即可
   return (
     <>
-      <div className="min-h-screen bg-background pb-6">
+      <div className="min-h-screen bg-background pb-24">
         <PullToRefreshIndicator pullDistance={pullDistance} isRefreshing={isRefreshing} />
 
         {/* 顶栏 */}
@@ -1132,6 +1132,17 @@ export default function MRushPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 底部固定返回按钮 */}
+      <div className="fixed bottom-0 left-0 right-0 px-4 py-2.5 bg-card/95 backdrop-blur border-t border-border z-30">
+        <Button
+          variant="outline"
+          className="w-full h-11 text-base font-semibold gap-2"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft size={18} />返回上一页
+        </Button>
+      </div>
     </>
   );
 }
