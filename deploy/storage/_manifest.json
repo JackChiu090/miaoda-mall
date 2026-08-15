@@ -1,0 +1,62 @@
+[
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/banners/banner-1784250100582-ymg7.webp",
+    "rel": "banners/banner-1784250100582-ymg7.webp",
+    "bytes": 535643
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/banners/banner-1784250109177-uzo3.webp",
+    "rel": "banners/banner-1784250109177-uzo3.webp",
+    "bytes": 455111
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/banners/banner-1784250116704-a7tc.webp",
+    "rel": "banners/banner-1784250116704-a7tc.webp",
+    "bytes": 560091
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/exchange-images/item-1783730364827-ycdezatt8m.webp",
+    "rel": "exchange-images/item-1783730364827-ycdezatt8m.webp",
+    "bytes": 65656
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/1e6e0b6a-b1fc-44a6-ba78-7eef38aa867b/baf75aa6-5a30-4d16-8380-e6c144a97924.png",
+    "rel": "payment-vouchers/payment-vouchers/1e6e0b6a-b1fc-44a6-ba78-7eef38aa867b/baf75aa6-5a30-4d16-8380-e6c144a97924.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/5c5ea97e-934e-4d2a-9df7-5e0bb11a1e03.png",
+    "rel": "payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/5c5ea97e-934e-4d2a-9df7-5e0bb11a1e03.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/67853758-d02d-4a9d-9eeb-3856a0319a59.png",
+    "rel": "payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/67853758-d02d-4a9d-9eeb-3856a0319a59.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/73230a66-fc8a-45d5-b370-e8523b4417b7.png",
+    "rel": "payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/73230a66-fc8a-45d5-b370-e8523b4417b7.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/e2a6ddc4-5e7c-47ee-a32b-b8eef3bc95e4.png",
+    "rel": "payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/e2a6ddc4-5e7c-47ee-a32b-b8eef3bc95e4.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/f99330a0-425f-46d4-a9c5-8d0bf2f5730b.png",
+    "rel": "payment-vouchers/payment-vouchers/a256890e-d87a-4b90-8158-301007001c23/f99330a0-425f-46d4-a9c5-8d0bf2f5730b.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/payment-vouchers/payment-vouchers/b77c8a86-5a9a-4a8f-a198-dc3b3b6686c3/a0794cdb-a284-4a2d-b5cd-d11b41e198c3.png",
+    "rel": "payment-vouchers/payment-vouchers/b77c8a86-5a9a-4a8f-a198-dc3b3b6686c3/a0794cdb-a284-4a2d-b5cd-d11b41e198c3.png",
+    "bytes": 20557
+  },
+  {
+    "url": "https://backend.appmiaoda.com/projects/supabase327696781469069312/storage/v1/object/public/product-images/products/1786296576177-2enwjx.jpg",
+    "rel": "product-images/products/1786296576177-2enwjx.jpg",
+    "bytes": 603190
+  }
+]

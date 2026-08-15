@@ -1,13 +1,16 @@
 // Edge Function: id-card-ocr
 // 身份证 OCR 识别 + 可选二要素核验
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+//
+// 当未配置 INTEGRATIONS_API_KEY 时（自托管部署默认情况），
+// 返回 success=false / reason=ocr_not_configured，让前端静默回退到手动填写。
+// 这样新用户一键安装后不会出现"OCR 识别失败"的错误。
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS });
   }
@@ -19,9 +22,16 @@ serve(async (req: Request): Promise<Response> => {
 
   const apiKey = Deno.env.get("INTEGRATIONS_API_KEY");
   if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Server configuration error" }), {
-      status: 500, headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    // 未配置外部 OCR：返回 200 + 明确原因，让前端静默跳过自动填充
+    return new Response(
+      JSON.stringify({
+        success: false,
+        reason: "ocr_not_configured",
+        message: "OCR 自动识别未配置，请手动填写姓名和身份证号",
+        words_result: {},
+      }),
+      { status: 200, headers: { ...CORS, "Content-Type": "application/json" } },
+    );
   }
 
   let body: Record<string, string>;

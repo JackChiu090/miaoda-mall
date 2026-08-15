@@ -113,6 +113,11 @@ export default function KycPage() {
         body: { id_card_side: 'front', url: item.front_image_url },
       });
       if (ocrErr) throw ocrErr;
+      // 自托管未配置 OCR：提示管理员手动审核，不报错
+      if (ocrData?.reason === 'ocr_not_configured') {
+        toast.info('OCR 自动审核未配置，请手动审核该申请');
+        return;
+      }
       const words = ocrData?.words_result ?? {};
       const ocrName   = (words['姓名']?.words ?? '').trim();
       const ocrCardNo = (words['公民身份号码']?.words ?? '').trim().toUpperCase();
@@ -153,6 +158,11 @@ export default function KycPage() {
         const { data: ocrData } = await supabase.functions.invoke('id-card-ocr', {
           body: { id_card_side: 'front', url: item.front_image_url },
         });
+        // 自托管未配置 OCR：跳过批量自动审核
+        if (ocrData?.reason === 'ocr_not_configured') {
+          toast.info('OCR 自动审核未配置，请手动审核');
+          return;
+        }
         const words = ocrData?.words_result ?? {};
         const ocrName   = (words['姓名']?.words ?? '').trim();
         const ocrCardNo = (words['公民身份号码']?.words ?? '').trim().toUpperCase();

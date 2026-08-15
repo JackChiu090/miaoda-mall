@@ -34,3 +34,14 @@ history/*.json
 /tasks
 .native-wind-cache
 .vite
+
+# 环境变量与密钥（每次安装由 install.sh 生成新的）
+.env
+.env.local
+.env.*.local
+
+# 一键安装临时产物
+.gen_keys.mjs
+gen_keys.mjs
+*.tar.gz
+.deploy_tmp/

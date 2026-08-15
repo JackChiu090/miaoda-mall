@@ -199,6 +199,11 @@ export default function MRegisterPage() {
           body: { id_card_side: 'front', image: imageBase64 },
         });
         if (error) throw error;
+        // 自托管未配置 OCR 服务：静默跳过自动填充
+        if (data?.reason === 'ocr_not_configured') {
+          setOcrDone(false);
+          return;
+        }
         // 百度身份证 OCR 返回 words_result 对象（key=字段名）
         const wr = data?.words_result ?? {};
         const name = wr['姓名']?.words ?? '';
@@ -273,24 +278,29 @@ export default function MRegisterPage() {
         toast.error('该身份证号已被其他账号绑定，每个身份证只能实名认证一次');
         return;
       }
-      // 2. 二要素核验
+      // 2. 二要素核验（自托管未配置时静默跳过）
       const { data, error } = await supabase.functions.invoke('id-card-two-factor-auth', {
         body: { idcard: card, name },
       });
       if (error) throw new Error('认证服务连接失败，请重试');
-      const respBody = data?.showapi_res_body;
-      if (data?.showapi_res_code !== 0) throw new Error(data?.showapi_res_error || '认证服务异常');
-      if (respBody?.code !== 0) {
-        const msgs: Record<number, string> = {
-          1: '姓名与身份证号不匹配，请核实后重新输入',
-          2: '该身份证号不存在，请检查输入',
-          12: '身份证号格式不正确',
-          14: '姓名格式异常，请检查',
-          100: '认证服务繁忙，请稍后重试',
-          101: '操作过于频繁，请60秒后再试',
-          103: '今日核验次数已达上限，请明日再试',
-        };
-        throw new Error(msgs[respBody.code] || `认证失败（code=${respBody.code}）`);
+      // 自托管未配置外部二要素核验：跳过，不阻断注册流程
+      if (data?.reason === 'ocr_not_configured') {
+        toast.info('二要素自动核验未配置，已跳过');
+      } else {
+        const respBody = data?.showapi_res_body;
+        if (data?.showapi_res_code !== 0) throw new Error(data?.showapi_res_error || '认证服务异常');
+        if (respBody?.code !== 0) {
+          const msgs: Record<number, string> = {
+            1: '姓名与身份证号不匹配，请核实后重新输入',
+            2: '该身份证号不存在，请检查输入',
+            12: '身份证号格式不正确',
+            14: '姓名格式异常，请检查',
+            100: '认证服务繁忙，请稍后重试',
+            101: '操作过于频繁，请60秒后再试',
+            103: '今日核验次数已达上限，请明日再试',
+          };
+          throw new Error(msgs[respBody.code] || `认证失败（code=${respBody.code}）`);
+        }
       }
       // 3. 先写库（认证通过即生效，图片上传失败不阻断流程）
       if (uid) {

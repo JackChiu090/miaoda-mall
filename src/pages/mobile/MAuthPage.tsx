@@ -71,6 +71,7 @@ export default function MAuthPage() {
   const [backPreview, setBackPreview]   = useState('');
   const [ocrLoading, setOcrLoading] = useState<'front' | 'back' | null>(null);
   const [ocrFailed, setOcrFailed] = useState(false);   // OCR 识别失败标记
+  const [ocrNotConfigured, setOcrNotConfigured] = useState(false); // OCR 服务未配置
   const [uploadProgress, setUploadProgress] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -94,12 +95,18 @@ export default function MAuthPage() {
     if (side !== 'front') return;
     setOcrLoading(side);
     setOcrFailed(false);
+    setOcrNotConfigured(false);
     try {
       const base64 = await fileToBase64(file);
       const { data, error } = await supabase.functions.invoke('id-card-ocr', {
         body: { id_card_side: side, image: base64 },
       });
       if (error) throw error;
+      // 未配置外部 OCR 服务（自托管部署默认情况）：静默跳过，不弹错误
+      if (data?.reason === 'ocr_not_configured') {
+        setOcrNotConfigured(true);
+        return;
+      }
       const words = data?.words_result ?? {};
       const name   = words['姓名']?.words ?? '';
       const cardNo = words['公民身份号码']?.words ?? '';
@@ -108,7 +115,6 @@ export default function MAuthPage() {
       if (name || cardNo) {
         toast.success('OCR 识别成功，已自动填写信息');
       } else {
-        // 识别成功但没读到信息
         setOcrFailed(true);
         toast.warning('未能识别到身份信息，请手动填写');
       }
@@ -298,7 +304,17 @@ export default function MAuthPage() {
               <p className="text-xs text-primary/80 bg-primary/5 rounded-lg px-3 py-2">
                 💡 上传正面照片后将自动识别姓名和身份证号
               </p>
-              {/* OCR 失败提示 */}
+              {/* OCR 未配置提示（自托管默认情况）——软提示，非错误 */}
+              {ocrNotConfigured && (
+                <div className="flex items-start gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2.5">
+                  <span className="text-primary text-base leading-none mt-0.5">💡</span>
+                  <div>
+                    <p className="text-xs font-medium text-foreground">未启用自动识别</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">请在下方手动填写姓名和身份证号</p>
+                  </div>
+                </div>
+              )}
+              {/* OCR 失败提示（仅在真正调用失败时显示） */}
               {ocrFailed && (
                 <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg px-3 py-2.5">
                   <span className="text-warning text-base leading-none mt-0.5">⚠️</span>

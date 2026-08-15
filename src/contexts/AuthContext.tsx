@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/db/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 import type { AdminRole } from '@/lib/roles';
@@ -37,29 +37,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = async (sess: Session | null) => {
+  // 加载管理员档案。注意：不要在 supabase auth 的 onAuthStateChange 回调里
+  // await 任何 supabase 查询 —— 会导致 auth 锁死锁，页面卡在「加载中」。
+  const loadProfile = useCallback(async (sess: Session | null) => {
     if (sess?.user) {
       const profile = await fetchAdminProfile(sess.user.id);
       setAdminProfile(profile);
     } else {
       setAdminProfile(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      await loadProfile(session);
-      setLoading(false);
+    let mounted = true;
+
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session: sess } }) => {
+        if (!mounted) return;
+        setSession(sess);
+        setLoading(false);
+        if (sess?.user) {
+          await loadProfile(sess);
+        }
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+      if (!mounted) return;
+      setSession(sess);
+      // 关键修复：不在回调里 await supabase 查询（避免 auth 锁死锁）。
+      // 用 setTimeout 把档案加载推迟到锁释放之后。
+      if (sess?.user) {
+        setTimeout(() => {
+          if (!mounted) return;
+          fetchAdminProfile(sess.user.id)
+            .then((p) => {
+              if (mounted) setAdminProfile(p);
+            })
+            .catch(() => {});
+        }, 0);
+      } else {
+        setAdminProfile(null);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      await loadProfile(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadProfile]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -74,21 +103,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase.auth.signOut();
       return { error: '账号已被禁用，请联系超级管理员' };
     }
+    setSession(data.session);
     setAdminProfile(profile);
     return { error: null };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setSession(null);
     setAdminProfile(null);
   };
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (session?.user) {
       const profile = await fetchAdminProfile(session.user.id);
       setAdminProfile(profile);
     }
-  };
+  }, [session]);
 
   return (
     <AuthContext.Provider value={{ session, user: session?.user ?? null, adminProfile, loading, signIn, signOut, refreshProfile }}>
