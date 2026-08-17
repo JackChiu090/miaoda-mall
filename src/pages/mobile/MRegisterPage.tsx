@@ -25,10 +25,10 @@ const STEPS = [
 ];
 
 // ─── 协议文本 ────────────────────────────────────────────────────
-const REGISTER_AGREEMENT = `众泰商城用户注册协议
+const REGISTER_AGREEMENT = `众泰成商城用户注册协议
 
 一、服务条款
-本协议是用户（以下简称"您"）与众泰商城平台（以下简称"本平台"）之间关于使用本平台服务所订立的协议。请您仔细阅读本协议，您点击"同意并继续"即表示接受本协议全部条款。
+本协议是用户（以下简称"您"）与众泰成商城平台（以下简称"本平台"）之间关于使用本平台服务所订立的协议。请您仔细阅读本协议，您点击"同意并继续"即表示接受本协议全部条款。
 
 二、注册条件
 1. 您必须年满18周岁，具有完全民事行为能力。
@@ -50,10 +50,10 @@ const REGISTER_AGREEMENT = `众泰商城用户注册协议
 六、法律适用
 本协议的签订、解释及纠纷解决均适用中华人民共和国法律。`;
 
-const CONTRACT_AGREEMENT = `众泰商城寄卖服务协议
+const CONTRACT_AGREEMENT = `众泰成商城寄卖服务协议
 
 一、协议说明
-本协议是您与众泰商城平台就寄卖服务所订立的正式合同，具有法律约束力。请认真阅读并确认签署。
+本协议是您与众泰成商城平台就寄卖服务所订立的正式合同，具有法律约束力。请认真阅读并确认签署。
 
 二、服务内容
 1. 本平台为您提供商品寄卖、竞拍及分销等电商服务。
@@ -425,7 +425,7 @@ export default function MRegisterPage() {
       });
       if (uid) await supabase.from('users').update({ register_step: 5 }).eq('id', uid);
       await refreshUser();
-      toast.success('注册完成，欢迎加入众泰商城！');
+      toast.success('注册完成，欢迎加入众泰成商城！');
       navigate('/m/home');
     } catch {
       toast.error('地址保存失败，请重试');
@@ -609,7 +609,7 @@ export default function MRegisterPage() {
               checked={agreementChecked}
               onChecked={setAgreementChecked}
               checkboxId="agree-register"
-              checkLabel="我已仔细阅读并同意《众泰商城用户注册协议》的全部内容"
+              checkLabel="我已仔细阅读并同意《众泰成商城用户注册协议》的全部内容"
             />
             <Button className="w-full h-12 text-base" onClick={handleAgreementNext} disabled={!agreementChecked}>
               同意并继续 <ChevronRight size={16} className="ml-1" />
@@ -786,7 +786,7 @@ export default function MRegisterPage() {
               checked={contractChecked}
               onChecked={setContractChecked}
               checkboxId="agree-contract"
-              checkLabel="我已仔细阅读并同意《众泰商城寄卖服务签约协议》，本协议对我具有法律约束力"
+              checkLabel="我已仔细阅读并同意《众泰成商城寄卖服务签约协议》，本协议对我具有法律约束力"
             />
             <Button className="w-full h-12 text-base" onClick={handleContractNext} disabled={!contractChecked}>
               确认签约并继续 <ChevronRight size={16} className="ml-1" />
@@ -887,7 +887,7 @@ export default function MRegisterPage() {
 
             <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700">
               <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
-              <p>恭喜！您已完成注册流程的最后一步。提交地址后即可开始使用众泰商城的全部功能。</p>
+              <p>恭喜！您已完成注册流程的最后一步。提交地址后即可开始使用众泰成商城的全部功能。</p>
             </div>
 
             <Button className="w-full h-12 text-base font-semibold" onClick={handleAddressSubmit} disabled={addrLoading}>

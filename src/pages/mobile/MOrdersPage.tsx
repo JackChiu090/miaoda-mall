@@ -143,7 +143,7 @@ export default function MOrdersPage() {
                              {/* 时间 */}
                              <div className="mt-1.5 space-y-0.5">
                                <p className="text-[10px] text-muted-foreground">
-                                 抢单时间：{order.created_at.replace('T', ' ').replace('Z', '').slice(0, 23)}
+                                 进货时间：{order.created_at.replace('T', ' ').replace('Z', '').slice(0, 23)}
                                </p>
                                {order.updated_at && order.updated_at !== order.created_at && (
                                  <p className="text-[10px] text-muted-foreground">

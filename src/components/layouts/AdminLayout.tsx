@@ -61,8 +61,8 @@ const NAV_ITEMS: NavItem[] = [
     icon: Zap,
     children: [
       { label: '9:29早场资格管理', path: '/rush-list', icon: ClipboardCheck },
-      { label: '抢单商品管理', path: '/rush-products', icon: Package },
-      { label: '抢购时段管理', path: '/flash-buy-manage', icon: Zap },
+      { label: '进货商品管理', path: '/rush-products', icon: Package },
+      { label: '进货时段管理', path: '/flash-buy-manage', icon: Zap },
       { label: '早市分级激励', path: '/morning-incentive', icon: Trophy },
       { label: '转拍时间设置', path: '/resell-config', icon: RefreshCw },
     ],

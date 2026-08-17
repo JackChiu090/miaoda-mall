@@ -28,7 +28,7 @@ interface SysConfig {
 // RBAC 权限矩阵定义：功能 -> 哪些状态可用
 const RBAC_FEATURES = [
   { key: 'browse_market',   label: '浏览进货市场',    trial: true,  active: true,  eliminated: false },
-  { key: 'flash_sale',      label: '参与限时抢单',    trial: true,  active: true,  eliminated: false },
+  { key: 'flash_sale',      label: '参与限时进货',    trial: true,  active: true,  eliminated: false },
   { key: 'upload_voucher',  label: '上传付款凭证',    trial: true,  active: true,  eliminated: false },
   { key: 'consign',         label: '商品寄卖申请',    trial: false, active: true,  eliminated: false },
   { key: 'resell',          label: '转拍上架',        trial: false, active: true,  eliminated: false },
@@ -253,7 +253,7 @@ export default function SystemConfigPage() {
             {[
               {
                 status: '体验期（trial）', color: 'border-primary/30 bg-primary/5',
-                items: ['可浏览市场、参与抢单', '可查看钱包与团队', '禁止商品寄卖、招商邀请、提现'],
+                items: ['可浏览市场、参与进货', '可查看钱包与团队', '禁止商品寄卖、招商邀请、提现'],
               },
               {
                 status: '正式用户（active）', color: 'border-green-200 bg-green-50 dark:bg-green-950/20',

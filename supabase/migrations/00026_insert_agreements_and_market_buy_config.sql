@@ -9,10 +9,10 @@ INSERT INTO platform_agreements (code, title, content, version, is_active, updat
   ('sign_agreement',      '签约协议',          '请在此填写签约协议内容。', 'v1.0', true, NOW())
 ON CONFLICT (code) DO NOTHING;
 
--- 抢购时段配置
+-- 进货时段配置
 INSERT INTO system_settings (key, value, description) VALUES
-  ('market_buy_start_hour',   '9',  '抢购开始时间（小时）'),
-  ('market_buy_start_minute', '30', '抢购开始时间（分钟）'),
-  ('market_buy_end_hour',     '9',  '抢购结束时间（小时）'),
-  ('market_buy_end_minute',   '35', '抢购结束时间（分钟）')
+  ('market_buy_start_hour',   '9',  '进货开始时间（小时）'),
+  ('market_buy_start_minute', '30', '进货开始时间（分钟）'),
+  ('market_buy_end_hour',     '9',  '进货结束时间（小时）'),
+  ('market_buy_end_minute',   '35', '进货结束时间（分钟）')
 ON CONFLICT (key) DO NOTHING;

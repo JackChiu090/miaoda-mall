@@ -130,7 +130,7 @@ export default function MWalletPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground">早市激励奖励</p>
-            <p className="text-xs text-muted-foreground">下级完成抢购订单后的分级奖励</p>
+            <p className="text-xs text-muted-foreground">下级完成进货订单后的分级奖励</p>
           </div>
           <ChevronRight size={16} className="text-muted-foreground shrink-0 ml-1" />
         </Link>

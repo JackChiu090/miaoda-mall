@@ -54,7 +54,7 @@ export default function LoginPage() {
 
           <div>
             <h2 className="text-3xl font-medium text-foreground leading-tight mb-4 text-balance">
-              C2C寄卖 · 竞拍抢单<br />多级分销运营平台
+              C2C寄卖 · 竞拍进货<br />多级分销运营平台
             </h2>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-sm text-pretty">
               统一管理用户、商品、订单、资金与分销体系，
@@ -65,7 +65,7 @@ export default function LoginPage() {
           <div className="grid grid-cols-3 gap-4">
             {[
               { label: '用户管理', desc: '实名认证 · 等级体系' },
-              { label: '交易管理', desc: '抢单竞拍 · 凭证留存' },
+              { label: '交易管理', desc: '进货竞拍 · 凭证留存' },
               { label: '分销体系', desc: '邀请绑定 · 奖金结算' },
             ].map(item => (
               <div key={item.label} className="border border-border rounded-sm p-3">

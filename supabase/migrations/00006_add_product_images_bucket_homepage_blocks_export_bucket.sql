@@ -45,6 +45,6 @@ CREATE POLICY "homepage_blocks_all" ON public.homepage_blocks FOR ALL USING (tru
 
 -- 预置3条默认Banner数据
 INSERT INTO public.homepage_blocks (type, title, subtitle, link_path, bg_gradient, sort_order, is_active) VALUES
-  ('banner', '限时抢单', '精选寄卖商品 · 一键下单', '/m/rush', 'from-primary to-secondary', 1, true),
+  ('banner', '限时进货', '精选寄卖商品 · 一键下单', '/m/rush', 'from-primary to-secondary', 1, true),
   ('banner', '进货市场', '统一定价 ¥1,688/套 · 品质保障', '/m/market', 'from-accent to-primary', 2, true),
   ('banner', '分销中心', '邀请好友 · 实时奖金结算', '/m/team', 'from-secondary to-accent', 3, true);

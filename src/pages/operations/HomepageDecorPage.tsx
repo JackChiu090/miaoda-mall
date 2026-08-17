@@ -173,7 +173,7 @@ export default function HomepageDecorPage() {
               <div className="col-span-2 space-y-1.5">
                 <Label className="text-xs text-muted-foreground">标题 *</Label>
                 <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="如：限时抢单" className="h-8 text-xs bg-muted border-border" />
+                  placeholder="如：限时进货" className="h-8 text-xs bg-muted border-border" />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label className="text-xs text-muted-foreground">副标题</Label>

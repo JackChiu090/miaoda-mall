@@ -80,7 +80,7 @@ export default function MBuyWarehousePage() {
   const [orders, setOrders] = useState<BuyOrder[]>([]);
   const [consignProducts, setConsignProducts] = useState<ConsignProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  // 若 URL 携带 tab 参数则自动切换（如从抢购页跳转时传 ?tab=pending_payment）
+  // 若 URL 携带 tab 参数则自动切换（如从进货页跳转时传 ?tab=pending_payment）
   const [tab, setTab] = useState(() => searchParams.get('tab') ?? 'all');
   const [uploading, setUploading] = useState<string | null>(null);
   const [reselling, setReselling] = useState<string | null>(null);
@@ -148,7 +148,7 @@ export default function MBuyWarehousePage() {
     loadPremiumRate();
   }, [location.pathname, mobileUser?.id, load, loadPremiumRate]);
 
-  // URL tab 参数变化时同步切换（抢购成功后跳转自动切到待付款）
+  // URL tab 参数变化时同步切换（进货成功后跳转自动切到待付款）
   useEffect(() => {
     const t = searchParams.get('tab');
     if (t) setTab(t);
@@ -313,7 +313,7 @@ export default function MBuyWarehousePage() {
         {/* 流程说明 */}
         <div className="mx-4 mt-3 bg-primary/5 border border-primary/15 rounded-xl px-4 py-3 text-xs text-muted-foreground space-y-1">
           <p className="font-medium text-foreground text-sm">操作流程</p>
-          <p>{"① 9:30 抢单（体验商家9:25）→ ② 上传\"已支付请确认\"图片 → ③ 等待卖家确认收款 → ④ 周一至周五 : 后点击\"转拍\"（批量流转溢价 %）"}</p>
+          <p>{"① 9:30 进货（体验商家9:25）→ ② 上传\"已支付请确认\"图片 → ③ 等待卖家确认收款 → ④ 周一至周五 : 后点击\"转拍\"（批量流转溢价 %）"}</p>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-3">
@@ -463,10 +463,10 @@ export default function MBuyWarehousePage() {
                                   <p className="text-xs text-muted-foreground pl-0.5">买家电话：{order.buyer.phone}</p>
                                 )}
                               </div>
-                              {/* 抢单时间 + 更新时间 */}
+                              {/* 进货时间 + 更新时间 */}
                               <div className="mt-1.5 space-y-0.5">
                                 <p className="text-[10px] text-muted-foreground">
-                                  抢单时间：{order.created_at.replace('T', ' ').replace('Z', '').slice(0, 23)}
+                                  进货时间：{order.created_at.replace('T', ' ').replace('Z', '').slice(0, 23)}
                                 </p>
                                 {order.updated_at && order.updated_at !== order.created_at && (
                                   <p className="text-[10px] text-muted-foreground">
@@ -606,7 +606,7 @@ export default function MBuyWarehousePage() {
                                     order_id: order.id, from_status: 'confirmed', to_status: 'completed',
                                     operator_type: 'buyer', operator_id: mobileUser!.id, remark: '买方标记自用，交易完成',
                                   });
-                                  // 抢购区订单完成 → 升级为正式商家
+                                  // 进货区订单完成 → 升级为正式商家
                                   if (order.is_rush && mobileUser!.merchant_type !== 'regular') {
                                     await supabase.from('users').update({ merchant_type: 'regular' }).eq('id', mobileUser!.id);
                                     toast.success('已标记自用，交易完成！🎉 恭喜升级为正式商家');

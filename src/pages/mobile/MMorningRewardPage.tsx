@@ -64,7 +64,7 @@ export default function MMorningRewardPage() {
           <span className="text-xs text-muted-foreground">早市激励奖励（本页）</span>
         </div>
         <p className="text-2xl font-bold text-primary">¥{totalAmount.toFixed(2)}</p>
-        <p className="text-[11px] text-muted-foreground mt-1">下级商家完成抢购订单后，系统按推荐链路自动分配的奖励</p>
+        <p className="text-[11px] text-muted-foreground mt-1">下级商家完成进货订单后，系统按推荐链路自动分配的奖励</p>
       </div>
 
       <div className="px-4 mt-4">
@@ -74,7 +74,7 @@ export default function MMorningRewardPage() {
           <div className="text-center py-16 text-muted-foreground">
             <Trophy size={40} className="mx-auto mb-3 opacity-30" />
             <p className="text-sm">暂无早市激励奖励</p>
-            <p className="text-xs mt-1">下级商家完成抢购订单后，奖励将在此展示</p>
+            <p className="text-xs mt-1">下级商家完成进货订单后，奖励将在此展示</p>
           </div>
         ) : (
           <div className="space-y-3">

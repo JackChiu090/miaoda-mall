@@ -1,4 +1,4 @@
--- 抢购时段配置表：支持多个时段并行管理与优先级
+-- 进货时段配置表：支持多个时段并行管理与优先级
 CREATE TABLE public.rush_time_slots (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,

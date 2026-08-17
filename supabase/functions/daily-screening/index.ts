@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
         .update({ screening_today: true, eat_soil_deducted: true })
         .eq('id', uid);
 
-      // ── 连续两次吃土 → 自动加入 9:29 体验商家抢单资格 ──
+      // ── 连续两次吃土 → 自动加入 9:29 体验商家进货资格 ──
       // 查询该用户历史 screening_records 记录数（含今日刚插入的）
       const { count: screenCount } = await db
         .from('screening_records')
@@ -310,9 +310,9 @@ Deno.serve(async (req) => {
           await db.from('rush_early_access').insert({
             user_id:       uid,
             added_by_admin: 'system',
-            notes:         '连续两次触发吃土机制，系统自动授予9:29体验商家抢单资格',
+            notes:         '连续两次触发吃土机制，系统自动授予9:29体验商家进货资格',
           });
-          console.log(`[daily-screening] 用户 ${uid} 连续${screenCount}次吃土，已自动加入09:29抢单资格`);
+          console.log(`[daily-screening] 用户 ${uid} 连续${screenCount}次吃土，已自动加入09:29进货资格`);
         }
       }
     }

@@ -45,3 +45,6 @@ history/*.json
 gen_keys.mjs
 *.tar.gz
 .deploy_tmp/
+
+# 工作目录与本地记忆（不提交）
+.workbuddy/

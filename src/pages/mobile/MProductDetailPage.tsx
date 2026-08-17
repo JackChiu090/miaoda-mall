@@ -132,7 +132,7 @@ export default function MProductDetailPage() {
           {[
             '本平台采用C2C私域撮合交易，买卖双方私域直转',
             '平台收取成交金额3%服务费',
-            '抢单成功后须在规定时间内完成付款并上传凭证',
+            '进货成功后须在规定时间内完成付款并上传凭证',
           ].map((tip, i) => (
             <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
               <span className="text-primary shrink-0 mt-0.5">•</span>{tip}
@@ -145,7 +145,7 @@ export default function MProductDetailPage() {
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-card border-t border-border px-4 py-3">
         <Button className="w-full h-12 text-base font-medium" onClick={handleRush}>
           <Zap size={16} className="mr-2" />
-          参与限时抢单
+          参与限时进货
         </Button>
       </div>
     </div>

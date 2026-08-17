@@ -154,7 +154,7 @@ export default function MHomePage() {
           {!mobileUser && (
             <div className="bg-primary/10 border border-primary/30 rounded-2xl p-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">登录后参与抢单和分销</p>
+                <p className="text-sm font-medium text-foreground">登录后参与进货和分销</p>
                 <p className="text-xs text-muted-foreground mt-0.5">注册即享平台专属权益</p>
               </div>
               <Button size="sm" onClick={() => navigate('/m/login')} className="shrink-0 h-8 text-xs">立即登录</Button>

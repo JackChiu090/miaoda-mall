@@ -444,7 +444,7 @@ export default function BannerManagePage() {
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">标题（选填，会叠加在图片上）</Label>
                 <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="如：限时抢单，精选好货" className="h-8 text-xs bg-muted border-border" />
+                  placeholder="如：限时进货，精选好货" className="h-8 text-xs bg-muted border-border" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">副标题（选填）</Label>

@@ -27,19 +27,19 @@ INSERT INTO "public"."system_settings" ("key", "value", "description") VALUES
   ('eat_soil_rate','0.05','吃土扣除比例'),('new_user_eat_soil_days','5','新用户吃土宽限天数'),
   ('merchant_bonus_rate','0.01','商家分红比例'),('boss_bonus_rate','0.017','老板分红比例'),
   ('voucher_reserve_rate','0.001','代金券储备比例'),('voucher_pool_redeem_threshold','3980','代金券兑换阈值'),
-  ('voucher_min_direct_referrals','3','兑换最少直推人数'),('rush_display_hour','9','抢购展示小时'),
+  ('voucher_min_direct_referrals','3','兑换最少直推人数'),('rush_display_hour','9','进货展示小时'),
   ('market_open_hour','9','进货市场开市小时'),('market_open_minute','0','进货市场开市分钟'),
   ('resell_cutoff_hour','14','转拍截止小时'),('resell_cutoff_minute','20','转拍截止分钟'),
-  ('market_buy_start_hour','9','抢购开始小时'),('market_buy_start_minute','30','抢购开始分钟'),
-  ('market_buy_end_hour','9','抢购结束小时'),('market_buy_end_minute','35','抢购结束分钟'),
+  ('market_buy_start_hour','9','进货开始小时'),('market_buy_start_minute','30','进货开始分钟'),
+  ('market_buy_end_hour','9','进货结束小时'),('market_buy_end_minute','35','进货结束分钟'),
   ('eat_soil_min_active_users','20','吃土最小活跃用户数'),('eat_soil_deduct_rate','0.5','吃土扣款比例'),
   ('eat_soil_recover_days','3','吃土恢复天数'),('eat_soil_freeze_referral_days','20','吃土冻结推荐天数'),
-  ('trial_required_days','15','体验商家最多工作日'),('trial_daily_rush_min','1','体验商家每日抢购下限'),
-  ('trial_daily_rush_max','2','体验商家每日抢购上限'),('regular_daily_rush_min','2','正式商家每日抢购下限'),
+  ('trial_required_days','15','体验商家最多工作日'),('trial_daily_rush_min','1','体验商家每日进货下限'),
+  ('trial_daily_rush_max','2','体验商家每日进货上限'),('regular_daily_rush_min','2','正式商家每日进货下限'),
   ('early_rush_start_hour','9','早场开放小时'),('early_rush_start_min','29','早场开放分钟'),
   ('main_rush_start_hour','9','主场开放小时'),('main_rush_start_min','30','主场开放分钟'),
   ('referral_reward_amount','50','推荐奖励金额'),('rush_early_max_trial','1','早场体验商家限购'),
-  ('rush_max_per_day','3','每日抢购上限'),('resell_start_hour','14','转拍开始小时'),
+  ('rush_max_per_day','3','每日进货上限'),('resell_start_hour','14','转拍开始小时'),
   ('resell_start_minute','20','转拍开始分钟'),('resell_manual_override','false','转拍手动覆盖')
 ON CONFLICT ("key") DO NOTHING;
 
@@ -291,8 +291,8 @@ ON CONFLICT DO NOTHING;
 
 -- rush_time_slots: 2 rows
 INSERT INTO "public"."rush_time_slots" ("id", "name", "start_minute", "end_minute", "price_discount", "priority", "is_active", "created_at", "updated_at", "session_type") VALUES
-  ('011f8e3f-435a-4ae3-9d59-2be247df066e', '主场抢购', 570, 575, 1.0, 2, true, '2026-08-06T11:22:37.494871+00:00', '2026-08-09T09:20:59.878+00:00', 'formal'),
-  ('66d7276d-7ce2-424c-b7fa-1b22e497f045', '开市抢购', 565, 570, 1.0, 1, true, '2026-08-06T11:22:37.494871+00:00', '2026-08-10T16:05:02.376+00:00', 'early')
+  ('011f8e3f-435a-4ae3-9d59-2be247df066e', '主场进货', 570, 575, 1.0, 2, true, '2026-08-06T11:22:37.494871+00:00', '2026-08-09T09:20:59.878+00:00', 'formal'),
+  ('66d7276d-7ce2-424c-b7fa-1b22e497f045', '开市进货', 565, 570, 1.0, 1, true, '2026-08-06T11:22:37.494871+00:00', '2026-08-10T16:05:02.376+00:00', 'early')
 ON CONFLICT DO NOTHING;
 
 -- rush_activities: 2 rows
@@ -343,14 +343,14 @@ ON CONFLICT DO NOTHING;
 -- announcements: 4 rows
 INSERT INTO "public"."announcements" ("id", "title", "content", "type", "status", "published_at", "withdrawn_at", "created_by", "created_at", "updated_at") VALUES
   ('647dcbaa-4795-4afb-9240-8b69c8e1211e', '欢迎来到众泰成商城', '欢迎来到众泰成商城', 'notice', 'published', '2026-07-06T04:00:21.436+00:00', NULL, NULL, '2026-07-06T04:00:19.371551+00:00', '2026-07-06T04:00:21.436+00:00'),
-  ('92d9fdcf-2192-41a1-bee6-a70521863b7f', '平台上线公告', '欢迎来到众泰商城，C2C寄卖+竞拍+分销一体化平台正式上线！', 'notice', 'published', '2026-08-01T04:48:44.212528+00:00', NULL, NULL, '2026-08-06T04:48:44.212528+00:00', '2026-08-06T04:48:44.212528+00:00'),
-  ('da7ed1c2-a066-4235-abd8-89b5245ef1ff', '限时抢购规则说明', '工作日 09:29-20:35 为限时抢购时段，体验商家每日最多2单。', 'notice', 'published', '2026-08-03T04:48:44.212528+00:00', NULL, NULL, '2026-08-06T04:48:44.212528+00:00', '2026-08-06T04:48:44.212528+00:00'),
+  ('92d9fdcf-2192-41a1-bee6-a70521863b7f', '平台上线公告', '欢迎来到众泰成商城，C2C寄卖+竞拍+分销一体化平台正式上线！', 'notice', 'published', '2026-08-01T04:48:44.212528+00:00', NULL, NULL, '2026-08-06T04:48:44.212528+00:00', '2026-08-06T04:48:44.212528+00:00'),
+  ('da7ed1c2-a066-4235-abd8-89b5245ef1ff', '限时进货规则说明', '工作日 09:25-09:30 为早场进货时段，09:30-09:35 为主场进货时段。', 'notice', 'published', '2026-08-03T04:48:44.212528+00:00', NULL, NULL, '2026-08-06T04:48:44.212528+00:00', '2026-08-06T04:48:44.212528+00:00'),
   ('71d8bbe6-ee02-4428-8ac4-598c07f99bc7', '实名认证提醒', '为保障交易安全，请尽快完成实名认证。', 'notice', 'published', '2026-08-05T04:48:44.212528+00:00', NULL, NULL, '2026-08-06T04:48:44.212528+00:00', '2026-08-06T04:48:44.212528+00:00')
 ON CONFLICT DO NOTHING;
 
 -- homepage_blocks: 3 rows
 INSERT INTO "public"."homepage_blocks" ("id", "type", "title", "subtitle", "link_path", "image_url", "bg_gradient", "sort_order", "is_active", "created_at", "updated_at") VALUES
-  ('2a6d779f-d2f7-4482-821e-3a733f1ad1c2', 'banner', '限时抢单', '精选寄卖商品 · 一键下单', '/m/rush', '', 'from-primary to-secondary', 1, true, '2026-06-23T14:15:00.428081+00:00', '2026-06-23T14:15:00.428081+00:00'),
+  ('2a6d779f-d2f7-4482-821e-3a733f1ad1c2', 'banner', '限时进货', '精选寄卖商品 · 一键下单', '/m/rush', '', 'from-primary to-secondary', 1, true, '2026-06-23T14:15:00.428081+00:00', '2026-06-23T14:15:00.428081+00:00'),
   ('8321e1f4-630f-4168-a88c-b3644c7199d4', 'banner', '进货市场', '统一定价 ¥1,688/套 · 品质保障', '/m/market', '', 'from-accent to-primary', 2, true, '2026-06-23T14:15:00.428081+00:00', '2026-06-23T14:15:00.428081+00:00'),
   ('c47274b8-f406-4289-a763-01de3fb397ac', 'banner', '分销中心', '邀请好友 · 实时奖金结算', '/m/team', '', 'from-secondary to-accent', 3, true, '2026-06-23T14:15:00.428081+00:00', '2026-06-23T14:15:00.428081+00:00')
 ON CONFLICT DO NOTHING;

@@ -1,6 +1,6 @@
-# 进货市场抢购管理系统设计文档
+# 进货市场进货管理系统设计文档
 
-> 核心目标：严格按照「时段参数配置」规则执行抢购流程，每个时段参数独立生效、无缝切换，所有抢购行为均受对应时段参数约束。
+> 核心目标：严格按照「时段参数配置」规则执行进货流程，每个时段参数独立生效、无缝切换，所有进货行为均受对应时段参数约束。
 
 ---
 
@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | **配置层** | 时段参数的存储与管理（CRUD） | `rush_time_slots` 表 + `FlashBuyManagePage` |
 | **生效层** | 参数的实时读取、时间点自动切换、重叠仲裁 | `MRushPage`（客户端渲染）+ Realtime 订阅 |
-| **校验层** | 抢购下单时的参数校验（服务端权威校验） | `getRushPhaseAndLimit` + `handleFlashBuy` |
+| **校验层** | 进货下单时的参数校验（服务端权威校验） | `getRushPhaseAndLimit` + `handleFlashBuy` |
 | **异常层** | 时段切换、并发、库存耗尽等异常处理 | 下单流程的原子校验与兜底 |
 
 ### 1.2 数据模型
@@ -24,7 +24,7 @@ rush_time_slots (
   start_minute  int,           -- 开始分钟（北京时间，0-1439）
   end_minute    int,           -- 结束分钟（北京时间，0-1439）
   stock_limit   int,           -- 该时段全局库存限额（可下单总量）
-  price_discount numeric,      -- 价格折扣（寄卖价 × 折扣 = 抢购价）
+  price_discount numeric,      -- 价格折扣（寄卖价 × 折扣 = 进货价）
   priority      int,           -- 优先级（升序，小者优先）
   is_active     boolean,       -- 是否启用
   updated_at    timestamptz    -- 最后更新时间（重叠仲裁依据）
@@ -32,12 +32,12 @@ rush_time_slots (
 
 orders (
   ...,
-  is_rush       boolean,       -- 是否抢购单
-  rush_slot_id  uuid           -- 归属的抢购时段（用于库存核算）
+  is_rush       boolean,       -- 是否进货单
+  rush_slot_id  uuid           -- 归属的进货时段（用于库存核算）
 )
 ```
 
-**关键设计**：`orders.rush_slot_id` 将每笔抢购单归属到具体时段，使「全局库存限额」可按时段独立核算。
+**关键设计**：`orders.rush_slot_id` 将每笔进货单归属到具体时段，使「全局库存限额」可按时段独立核算。
 
 ---
 
@@ -90,7 +90,7 @@ orders (
 ### 3.3 配置变更实时下发
 
 - 对 `rush_time_slots` 表建立 Realtime 订阅
-- 管理端任意修改（增/删/改/启停）后，所有在线抢单页**即时收到变更并重新拉取规则**
+- 管理端任意修改（增/删/改/启停）后，所有在线进货页**即时收到变更并重新拉取规则**
 - 配合每秒渲染，实现"修改后立即生效，无需刷新或重启"
 
 ### 3.4 服务端权威校验
@@ -101,7 +101,7 @@ orders (
 
 ---
 
-## 四、抢购过程中的参数校验（防止超配置限额）
+## 四、进货过程中的参数校验（防止超配置限额）
 
 ### 4.1 双重限额模型
 
@@ -117,12 +117,12 @@ orders (
 2. 获取当前权威状态：getRushPhaseAndLimit（服务端实时查询）
    → phase / slot / slotRemaining / todayCnt / dayLimit
 3. 时段校验：
-   - phase='none' → "当前非抢购时段"
-   - phase='ended' → "今日抢购已结束"
+   - phase='none' → "当前非进货时段"
+   - phase='ended' → "今日进货已结束"
 4. 库存校验（核心）：
    - slotRemaining ≤ 0 → "该时段库存已抢完"
 5. 单用户上限校验：
-   - todayCnt ≥ dayLimit → "今日抢单已达上限"
+   - todayCnt ≥ dayLimit → "今日进货已达上限"
 6. 价格应用：finalPrice = consignment_price × slot.price_discount
 7. 写入订单：含 rush_slot_id（归属时段）
 8. 后处理：清除"未抢"标记、标记商品已购、Realtime 通知
@@ -146,11 +146,11 @@ orders (
 
 ### 5.1 时段切换竞态
 
-**场景**：用户在 09:29:59 点击抢购，请求到达服务端时已是 09:30:01（时段已切换）。
+**场景**：用户在 09:29:59 点击进货，请求到达服务端时已是 09:30:01（时段已切换）。
 
 **处理**：服务端在请求处理瞬间重新计算当前时段，以**请求时刻**的生效时段为准：
 - 若已切换到新时段 → 应用新时段的参数（价格、库存）
-- 若已无生效时段（`phase='ended'`/`'none'`）→ 拒绝并提示"时段已结束/当前非抢购时段"
+- 若已无生效时段（`phase='ended'`/`'none'`）→ 拒绝并提示"时段已结束/当前非进货时段"
 
 用户端展示的时段与实际下单时段可能不一致，但**最终以服务端权威结果为准**，不会产生越权订单。
 
@@ -162,7 +162,7 @@ orders (
 
 ### 5.3 订单归属与核算
 
-- 每笔抢购单写入 `rush_slot_id`，明确归属时段
+- 每笔进货单写入 `rush_slot_id`，明确归属时段
 - 库存核算：`count(orders WHERE rush_slot_id = slot.id AND created_at ≥ 今日0点)`
 - 时段删除时 `rush_slot_id` 置空（`ON DELETE SET NULL`），历史订单保留
 

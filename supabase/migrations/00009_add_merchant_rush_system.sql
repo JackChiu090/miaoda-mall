@@ -4,7 +4,7 @@ ALTER TABLE users
   ADD COLUMN merchant_type text NOT NULL DEFAULT 'trial' CHECK (merchant_type IN ('trial','regular')),
   ADD COLUMN consecutive_missed integer NOT NULL DEFAULT 0;
 
--- 2. 9:29 体验商家抢单资格表
+-- 2. 9:29 体验商家进货资格表
 CREATE TABLE rush_early_access (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

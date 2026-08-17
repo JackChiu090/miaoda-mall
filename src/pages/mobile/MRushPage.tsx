@@ -1,4 +1,4 @@
-// 限时抢单页：两层时间体系（自定义活动优先 > 默认时段）
+// 限时进货页：两层时间体系（自定义活动优先 > 默认时段）
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/db/supabase';
@@ -50,7 +50,7 @@ interface PreviewProduct {
   is_active: boolean;
 }
 
-/** 今日早场抢购记录（正式商家用） */
+/** 今日早场进货记录（正式商家用） */
 interface TodayRushOrder {
   id: string;
   order_no: string;
@@ -61,7 +61,7 @@ interface TodayRushOrder {
   seller: { real_name: string | null; nickname: string; phone: string } | null;
 }
 
-/** 抢购时段配置（来自 rush_time_slots 表） */
+/** 进货时段配置（来自 rush_time_slots 表） */
 interface TimeSlot {
   id: string;
   name: string;
@@ -74,7 +74,7 @@ interface TimeSlot {
   updated_at: string;
 }
 
-/** 自定义抢购活动（覆盖默认时段） */
+/** 自定义进货活动（覆盖默认时段） */
 interface RushActivity {
   id: string;
   name: string;
@@ -109,18 +109,17 @@ function splitDuration(totalSec: number) {
   return { d, h, m, s };
 }
 
-/** 用于“下一次抢单”计算的最小时段形状（默认时段与自定义活动通用） */
+/** 用于“下一次进货”计算的最小时段形状（默认时段与自定义活动通用） */
 type NextRushSlot = Pick<RushPeriod, 'id' | 'name' | 'start_minute' | 'end_minute' | 'session_type'>;
 
 /**
- * ─────────── 5 阶段状态机 ────────────────────────────────────────────────────
- *  off      = 周末/无配置/09:00 前（展示下次抢单提醒）
+ * ─────────── 4 阶段状态机 ────────────────────────────────────────────────────
+ *  off      = 周末/无配置/09:00 前（展示下次进货提醒）
  *  preview  = 09:00 ~ 首场开始前（只读浏览商品，不可下单）
- *  warming  = early 时段进行中（09:25～09:30：倒计时，禁止下单）
- *  trading  = formal 时段进行中（09:30～09:35：正式抢购，可下单）
+ *  trading  = 任一时段进行中（早场 09:25～09:30 / 主场 09:30～09:35，均可下单）
  *  ended    = 今日所有场次已结束（展示下一期预告）
  * ──────────────────────────────────────────────────────────────────────────── */
-type RushPhase = 'off' | 'preview' | 'warming' | 'trading' | 'ended';
+type RushPhase = 'off' | 'preview' | 'trading' | 'ended';
 
 /** 09:00 = 540 分钟 — 开市预览最早展示时间，早于此时刻统一显示 off */
 const PREVIEW_START_MIN = 540;
@@ -132,9 +131,9 @@ function computeRushPhase(
   nowMins: number,
   isWeekend: boolean,
 ): RushPhase {
-  // ① 有活跃时段（resolveCurrentPeriod 实时判断，精确到分钟）
+  // ① 有活跃时段（resolveCurrentPeriod 实时判断，精确到分钟）——早场与主场均可下单
   if (currentPeriod) {
-    return currentPeriod.session_type === 'early' ? 'warming' : 'trading';
+    return 'trading';
   }
 
   // 周末：只有自定义活动才允许开市；默认时段不参与计算
@@ -156,23 +155,15 @@ function computeRushPhase(
     s => nowMins >= s.start_minute && nowMins < s.end_minute,
   );
   if (localActive) {
-    return localActive.session_type === 'early' ? 'warming' : 'trading';
+    return 'trading';
   }
 
   // ⑤ 兜底（两场次之间的极短间隙，理论上不应出现）
   return 'off';
 }
 
-/** 从所有时段中找出 ≥ afterMinute 的首个 formal 时段开始分钟（驱动早场倒计时） */
-function findFormalStart(allSlots: NextRushSlot[], afterMinute: number): number | null {
-  const next = allSlots
-    .filter(s => s.session_type === 'formal' && s.start_minute >= afterMinute)
-    .sort((a, b) => a.start_minute - b.start_minute)[0];
-  return next?.start_minute ?? null;
-}
-
 /**
- * 计算下一次抢单的开始时间（考虑工作日规则：周末顺延到下一个工作日）
+ * 计算下一次进货的开始时间（考虑工作日规则：周末顺延到下一个工作日）
  * 返回该场次的绝对时间戳（ms）、对应时段、今日是否为周末、距今天数
  */
 function computeNextRush(slots: NextRushSlot[]): { ms: number; slot: NextRushSlot; isWeekend: boolean; daysAhead: number } | null {
@@ -222,7 +213,7 @@ function DigitBox({ value, label, urgent }: { value: number; label: string; urge
   );
 }
 
-/** 非抢购时段：下次抢单时间提醒模块（倒计时 + 具体日期时间 + 周末友好提示） */
+/** 非进货时段：下次进货时间提醒模块（倒计时 + 具体日期时间 + 周末友好提示） */
 function NextRushReminder({ nextRush }: { nextRush: { ms: number; slot: NextRushSlot; isWeekend: boolean; daysAhead: number } | null }) {
   const [sec, setSec] = useState(0);
   useEffect(() => {
@@ -250,10 +241,10 @@ function NextRushReminder({ nextRush }: { nextRush: { ms: number; slot: NextRush
       <div className="relative px-5 py-6 flex flex-col items-center gap-3">
         <div className="flex items-center gap-2">
           <Clock size={18} className="text-yellow-200" />
-          <span className="text-sm font-bold text-white/90">下次抢单</span>
+          <span className="text-sm font-bold text-white/90">下次进货</span>
         </div>
         <h2 className="text-2xl font-black text-white tracking-wider drop-shadow text-center">
-          {nextRush.isWeekend ? '周末休息，周一见 👋' : '距开抢还有'}
+          {nextRush.isWeekend ? '周末休息，周一见 👋' : '距进货还有'}
         </h2>
 
         <div className="flex items-end justify-center gap-2">
@@ -271,7 +262,7 @@ function NextRushReminder({ nextRush }: { nextRush: { ms: number; slot: NextRush
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 border border-white/30">
             <CalendarClock size={13} className="text-yellow-200" />
-            <span className="text-xs font-bold text-yellow-100">{dateStr} 开抢</span>
+            <span className="text-xs font-bold text-yellow-100">{dateStr} 进货</span>
           </div>
           <span className="text-[11px] text-white/70">{nextRush.slot.name} · {weekdayLabel}场次</span>
         </div>
@@ -281,7 +272,7 @@ function NextRushReminder({ nextRush }: { nextRush: { ms: number; slot: NextRush
         }`}>
           <Zap size={13} className={urgent ? 'text-red-200' : 'text-yellow-200'} />
           <span className="text-white text-xs font-semibold">
-            {nextRush.isWeekend ? '周末不抢单，期待下周精彩场次' : urgent ? '⚡ 最后冲刺，马上开抢！' : soon ? '🔥 预热中，即将开抢！' : '活动未开始，请耐心等待'}
+            {nextRush.isWeekend ? '周末不进货，期待下周精彩场次' : urgent ? '⚡ 最后冲刺，马上进货！' : soon ? '🔥 预热中，即将进货！' : '活动未开始，请耐心等待'}
           </span>
         </div>
       </div>
@@ -289,62 +280,7 @@ function NextRushReminder({ nextRush }: { nextRush: { ms: number; slot: NextRush
   );
 }
 
-/** 早场预热倒计时横幅：显示距正式抢购开始的剩余时间（精确到秒） */
-function WarmingCountdown({ targetMinute }: { targetMinute: number | null }) {
-  const [sec, setSec] = useState(0);
-  useEffect(() => {
-    const calc = () => {
-      if (targetMinute === null) { setSec(0); return; }
-      const bjNow = new Date(getServerNow() + 8 * 3600000);
-      const nowMins = bjNow.getUTCHours() * 60 + bjNow.getUTCMinutes();
-      const nowSecs = bjNow.getUTCSeconds();
-      const remaining = Math.max(0, (targetMinute - nowMins) * 60 - nowSecs);
-      setSec(remaining);
-    };
-    calc();
-    const t = setInterval(calc, 1000);
-    return () => clearInterval(t);
-  }, [targetMinute]);
-
-  const { m, s } = splitDuration(sec);
-  const urgent = sec > 0 && sec <= 30;
-
-  return (
-    <div className="relative w-full overflow-hidden rounded-2xl"
-      style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 55%, #ef4444 100%)' }}>
-      <div className="absolute -top-8 -right-8 w-36 h-36 rounded-full bg-white/15 blur-2xl animate-pulse" />
-      <div className="absolute -bottom-6 -left-4 w-28 h-28 rounded-full bg-yellow-300/15 blur-xl" />
-      <div className="relative px-5 py-5 flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Zap size={16} className="text-yellow-100" />
-          <span className="text-sm font-bold text-white/90">🌅 早场预热中</span>
-        </div>
-        {targetMinute !== null ? (
-          <>
-            <h2 className="text-xl font-black text-white tracking-wide drop-shadow">距正式抢购还有</h2>
-            <div className="flex items-end justify-center gap-2">
-              <DigitBox value={m} label="分" urgent={urgent} />
-              <span className="text-white/60 font-black text-2xl pb-5 animate-pulse">:</span>
-              <DigitBox value={s} label="秒" urgent={urgent} />
-            </div>
-          </>
-        ) : (
-          <h2 className="text-xl font-black text-white tracking-wide drop-shadow">抢购即将开始</h2>
-        )}
-        <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full border ${
-          urgent ? 'bg-red-900/40 border-red-300/50 animate-pulse' : 'bg-white/15 border-white/25'
-        }`}>
-          <Bell size={13} className={urgent ? 'text-red-200' : 'text-yellow-200'} />
-          <span className="text-white text-xs font-semibold">
-            {urgent ? '⚡ 即将开抢，请做好准备！' : '提前选好商品，开抢即可下单'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** 开市预览横幅：轻量版，展示距首场开抢的倒计时 */
+/** 开市预览横幅：轻量版，展示距首场进货的倒计时 */
 function PreviewBanner({ nextRush }: { nextRush: { ms: number; slot: NextRushSlot } | null }) {
   const [sec, setSec] = useState(0);
   useEffect(() => {
@@ -362,8 +298,8 @@ function PreviewBanner({ nextRush }: { nextRush: { ms: number; slot: NextRushSlo
       <div className="flex items-center gap-2.5 min-w-0">
         <Eye size={15} className="text-primary shrink-0" />
         <div className="min-w-0">
-          <p className="text-xs font-bold text-foreground">{nextRush.slot.name} · 即将开抢</p>
-          <p className="text-[10px] text-muted-foreground">现在可提前浏览商品，开抢后方可下单</p>
+          <p className="text-xs font-bold text-foreground">{nextRush.slot.name} · 即将进货</p>
+          <p className="text-[10px] text-muted-foreground">现在可提前浏览商品，进货后方可下单</p>
         </div>
       </div>
       <div className={`flex items-center gap-1 font-mono font-bold text-sm shrink-0 ml-3 ${urgent ? 'text-orange-500 animate-pulse' : 'text-primary'}`}>
@@ -375,7 +311,7 @@ function PreviewBanner({ nextRush }: { nextRush: { ms: number; slot: NextRushSlo
 }
 
 /**
- * 动态规则提示横幅：根据商家身份(体验/正式)与所处阶段(早场/正式抢购)展示对应规则
+ * 动态规则提示横幅：根据商家身份(体验/正式)与所处阶段(早场/正式进货)展示对应规则
  */
 function RushRuleBanner({
   merchantType,
@@ -406,18 +342,18 @@ function RushRuleBanner({
   if (sessionType === 'early') {
     if (isTrial) {
       title = '🌅 体验商家 · 早场';
-      desc = '可选择抢购最多 1 单，先到先得';
+      desc = '可选择进货最多 1 单，先到先得';
     } else if (isRegular) {
       title = '🌅 正式商家 · 早场';
-      desc = `今日可抢 ${dayLimit} 单，请选好商品，正式抢购开始后手动下单`;
+      desc = `今日可抢 ${dayLimit} 单，请选好商品，正式进货开始后手动下单`;
       icon = <Rocket size={15} className="text-orange-500 shrink-0" />;
     } else {
-      title = '🌅 早场抢购';
-      desc = '可选择抢购最多 1 单';
+      title = '🌅 早场进货';
+      desc = '可选择进货最多 1 单';
     }
   } else {
-    title = '🔥 主场抢购';
-    desc = `按推荐人数与被推荐人完成订单销售决定可抢单数：推荐1人→2单 / 2人→3单 / 3人→4单 / 4人→5单 / 5人→6单（封顶）。当前已完成销售的被推荐人 ${rc} 人`;
+    title = '🔥 主场进货';
+    desc = `按推荐人数与被推荐人完成订单销售决定可进货数：推荐1人→2单 / 2人→3单 / 3人→4单 / 4人→5单 / 5人→6单（封顶）。当前已完成销售的被推荐人 ${rc} 人`;
     icon = <Flame size={15} className="text-orange-500 shrink-0" />;
     accent = 'border-orange-300/60 bg-orange-500/10';
   }
@@ -453,15 +389,15 @@ export default function MRushPage() {
   // 实时 now，每秒刷新，驱动时段状态（以服务器/北京时间为准）
   const [now, setNow] = useState(() => new Date(getServerNow()));
 
-  // 推荐人数 & 今日抢单统计
+  // 推荐人数 & 今日进货统计
   const [referralCount, setReferralCount] = useState<number | null>(null);
   const [todayOrderCount, setTodayOrderCount] = useState<number | null>(null);
-  // 正式商家今日早场抢购记录
+  // 正式商家今日早场进货记录
   const [todayRushOrders, setTodayRushOrders] = useState<TodayRushOrder[]>([]);
 
-  // ── 抢购时段配置（来自 rush_time_slots 表，支持多时段并行与优先级，唯一时间依据）──
+  // ── 进货时段配置（来自 rush_time_slots 表，支持多时段并行与优先级，唯一时间依据）──
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  // ── 今日自定义抢购活动（覆盖默认时段，优先级最高）──
+  // ── 今日自定义进货活动（覆盖默认时段，优先级最高）──
   const [todayActivities, setTodayActivities] = useState<RushActivity[]>([]);
   // 早市激励配置：正式/体验商家早市首单限购数量（来自后台配置）
   const [incentiveCfg, setIncentiveCfg] = useState({ regular: 2, trial: 1 });
@@ -501,7 +437,7 @@ export default function MRushPage() {
       supabase.from('users').select('id').eq('referrer_id', mobileUser.id),
       supabase.from('orders').select('id', { count: 'exact', head: true })
         .eq('buyer_id', mobileUser.id).gte('created_at', bjTodayStart),
-      // 正式商家：拉取今日抢购记录（is_rush=true）
+      // 正式商家：拉取今日进货记录（is_rush=true）
       isRegular
         ? supabase.from('orders')
             .select('id,order_no,amount,status,created_at,products!orders_product_id_fkey(title,images),seller:users!seller_id(real_name,nickname,phone)')
@@ -510,12 +446,12 @@ export default function MRushPage() {
             .gte('created_at', bjTodayStart)
             .order('created_at', { ascending: true })
         : Promise.resolve({ data: [] }),
-      // 加载启用的抢购时段配置（按优先级升序）—— 默认时间依据
+      // 加载启用的进货时段配置（按优先级升序）—— 默认时间依据
       supabase.from('rush_time_slots')
         .select('id,name,start_minute,end_minute,price_discount,priority,is_active,session_type,updated_at')
         .eq('is_active', true)
         .order('priority', { ascending: true }),
-      // 加载今日生效的自定义抢购活动（覆盖默认时段，优先级最高）
+      // 加载今日生效的自定义进货活动（覆盖默认时段，优先级最高）
       supabase.from('rush_activities')
         .select('id,name,activity_date,start_minute,end_minute,price_discount,priority,is_active,session_type')
         .eq('is_active', true)
@@ -557,7 +493,7 @@ export default function MRushPage() {
       .select('id,title,consignment_price,images,is_resell,is_active')
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
-      .limit(20);  // 展示全部商品（含已被抢购的）
+      .limit(20);  // 展示全部商品（含已被进货的）
     const prods = (prodRes.data as unknown as PreviewProduct[]) ?? [];
     setPreviewProducts(prods);
     setLoading(false);
@@ -597,7 +533,7 @@ export default function MRushPage() {
   // 购买成功弹窗
   const [successModal, setSuccessModal] = useState<{ show: boolean; title: string }>({ show: false, title: '' });
 
-  // ── Realtime：监听其他人抢购预览商品，瞬间刷新全部列表 ──────────────────────────
+  // ── Realtime：监听其他人进货预览商品，瞬间刷新全部列表 ──────────────────────────
   useEffect(() => {
     if (previewProducts.length === 0) return;
     const prodIds = previewProducts.map(p => p.id);
@@ -616,7 +552,7 @@ export default function MRushPage() {
         if (mobileUser && newOrder.buyer_id === mobileUser.id) return;
         const prod = previewProducts.find(p => p.id === newOrder.product_id);
         const title = prod?.title ?? '某商品';
-        toast(`🔔 ${title.slice(0, 18)}${title.length > 18 ? '...' : ''} 已被他人抢购`, {
+        toast(`🔔 ${title.slice(0, 18)}${title.length > 18 ? '...' : ''} 已被他人进货`, {
           icon: <Bell size={15} className="text-orange-500" />,
           duration: 4000,
         });
@@ -625,7 +561,7 @@ export default function MRushPage() {
     return () => { supabase.removeChannel(channel); };
   }, [previewProducts, mobileUser]);
 
-  // ── Realtime：监听抢购时段配置变更，修改后立即生效（无需刷新/重启）──────────────────
+  // ── Realtime：监听进货时段配置变更，修改后立即生效（无需刷新/重启）──────────────────
   useEffect(() => {
     const channel = supabase
       .channel('rush-config-realtime')
@@ -648,9 +584,9 @@ export default function MRushPage() {
   }, [loadRushStats]);
 
   /**
-   * 根据商家身份与场次类型计算个人可抢单数（与 getRushPhaseAndLimit 保持一致）
+   * 根据商家身份与场次类型计算个人可进货数（与 getRushPhaseAndLimit 保持一致）
    *   - 早场(early)：体验商家 1 单；正式商家 2 单（系统自动）
-   *   - 正式抢购(formal)：仅正式商家参与，推荐N人且被推荐人完成订单销售→N+1单，最多6单封顶
+   *   - 正式进货(formal)：仅正式商家参与，推荐N人且被推荐人完成订单销售→N+1单，最多6单封顶
    *     rc 为"已完成订单销售的被推荐人数"
    */
   const computeDayLimit = (sessionType: 'early' | 'formal', rc: number) => {
@@ -665,7 +601,7 @@ export default function MRushPage() {
    * 计算当前场次与限额
    *
    * 时间依据（两层覆盖体系）：
-   *   1. 自定义抢购活动（rush_activities，今日生效）：优先级最高，完全覆盖默认时段
+   *   1. 自定义进货活动（rush_activities，今日生效）：优先级最高，完全覆盖默认时段
    *   2. 默认时段（rush_time_slots）：仅工作日（周一～周五）生效
    * 命中任一时段：应用其 price_discount，库存按当天实际挂单商品数动态核算；未命中：phase='none' 或 'ended'
    *
@@ -735,12 +671,10 @@ export default function MRushPage() {
     return { phase: 'none' as const, dayLimit: 0, todayCnt: tc, slot: null, sessionType: 'formal' as const, source: 'default' as const };
   };
 
-  // 直接抢购预览商品（进货区）
+  // 直接进货预览商品（进货区）
   const handleFlashBuy = async (p: PreviewProduct) => {
     if (!mobileUser) { navigate('/m/login'); return; }
     if (!mobileUser.is_super_admin && mobileUser.kyc_status !== 'approved') { toast.error('请先完成实名认证'); navigate('/m/auth'); return; }
-    // 早场预热阶段禁止下单（仅允许浏览，正式抢购时段开始后方可下单）
-    if (rushPhase === 'warming') { toast.error('抢购尚未开始，请等待正式抢购时段开启'); return; }
 
     const result = await getRushPhaseAndLimit(mobileUser.id);
     const { phase, dayLimit, todayCnt, slot } = result;
@@ -748,11 +682,11 @@ export default function MRushPage() {
 
     if (phase === 'none') {
       const isWeekend = (result as { isWeekend?: boolean }).isWeekend;
-      toast.error(isWeekend ? '抢购仅限工作日（周一至周五）开放' : '当前非抢购时段，请耐心等待');
+      toast.error(isWeekend ? '进货仅限工作日（周一至周五）开放' : '当前非进货时段，请耐心等待');
       return;
     }
     if (phase === 'ended') {
-      toast.error('今日抢购已结束');
+      toast.error('今日进货已结束');
       return;
     }
     // 时段模式：先校验全局库存（防止超配置限额），再校验单用户上限
@@ -762,17 +696,17 @@ export default function MRushPage() {
         return;
       }
       if (dayLimit <= 0) {
-        toast.error('当前抢单额度为 0，请先推荐好友并完成订单销售后再来抢购');
+        toast.error('当前进货额度为 0，请先推荐好友并完成订单销售后再来进货');
         return;
       }
       if (todayCnt >= dayLimit) {
-        toast.error(`今日抢单已达上限（${dayLimit}单）`);
+        toast.error(`今日进货已达上限（${dayLimit}单）`);
         return;
       }
     }
     // 老板无限制
     if (phase !== 'boss' && phase !== 'slot' && todayCnt >= dayLimit) {
-      toast.error(dayLimit <= 0 ? '当前抢单额度为 0，请先完成推荐任务' : `今日抢单已达上限（${dayLimit}单）`);
+      toast.error(dayLimit <= 0 ? '当前进货额度为 0，请先完成推荐任务' : `今日进货已达上限（${dayLimit}单）`);
       return;
     }
 
@@ -799,8 +733,8 @@ export default function MRushPage() {
         rush_slot_id:    slot?.source === 'default' ? (slot?.id ?? null) : null,
         rush_activity_id: slot?.source === 'custom' ? (slot?.id ?? null) : null,
       });
-      if (error) { toast.error('抢购失败，请重试'); return; }
-      // 老人抢单成功后清除"未抢"标记
+      if (error) { toast.error('进货失败，请重试'); return; }
+      // 老人进货成功后清除"未抢"标记
       if (mobileUser.merchant_type === 'regular') {
         await supabase.from('users').update({ rush_skipped_today: false }).eq('id', mobileUser.id);
       }
@@ -822,13 +756,8 @@ export default function MRushPage() {
   const rushPhase = computeRushPhase(currentPeriod, timeSlots, todayActivities, nowMins, isWeekend);
   // 无任何时段配置
   const noSlots = !loading && timeSlots.length === 0 && todayActivities.length === 0;
-  // 下一次抢单（考虑工作日规则，周末顺延到下周一）—— 自定义活动与默认时段合并计算
+  // 下一次进货（考虑工作日规则，周末顺延到下周一）—— 自定义活动与默认时段合并计算
   const nextRush = computeNextRush([...timeSlots, ...todayActivities]);
-  // 早场预热时：找到下一个正式抢购时段的开始分钟（驱动 WarmingCountdown 倒计时）
-  const allSlotsForPhase: NextRushSlot[] = [...timeSlots, ...todayActivities];
-  const formalStartMinute: number | null = rushPhase === 'warming' && currentPeriod
-    ? findFormalStart(allSlotsForPhase, currentPeriod.end_minute)
-    : null;
   // 过滤掉已被抢完的商品（自己或他人已购、或商品已下架），确保只展示有效可购买商品
   const visibleProducts = previewProducts.filter(p => !purchasedIds.has(p.id) && p.is_active);
 
@@ -838,16 +767,14 @@ export default function MRushPage() {
     const prev = prevPhaseRef.current;
     prevPhaseRef.current = rushPhase;
     if (prev === null || prev === rushPhase) return; // 初始挂载或阶段未变，跳过
-    // 进入预热：确保本期商品已加载
-    if (rushPhase === 'warming') { load(); loadRushStats(); }
-    // 进入正式抢购：刷新最新库存与订单状态
+    // 进入进货：刷新最新库存与订单状态
     if (rushPhase === 'trading') { load(); loadRushStats(); }
     // 进入已结束：更新今日成交统计
     if (rushPhase === 'ended') { loadRushStats(); }
   }, [rushPhase, load, loadRushStats]);
 
-  // 【已禁用】自动抢单功能已关闭，正式商家需手动点击抢单按钮
-  // 原自动触发逻辑（auto-rush-early）已移除，用户在抢购时段内手动操作即可
+  // 【已禁用】自动进货功能已关闭，正式商家需手动点击进货按钮
+  // 原自动触发逻辑（auto-rush-early）已移除，用户在进货时段内手动操作即可
   return (
     <>
       <div className="min-h-screen bg-background pb-24">
@@ -855,12 +782,11 @@ export default function MRushPage() {
 
         {/* 顶栏 */}
         <div className="bg-card border-b border-border px-4 pt-2 pb-3 flex items-center justify-between">
-          <MobileHeader title="限时抢单" back className="flex-1" />
+          <MobileHeader title="限时进货" back className="flex-1" />
           <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
             <Flame size={13} className="text-orange-500" />
             <span>{
-              rushPhase === 'trading' ? `${currentPeriod!.name} 抢购中` :
-              rushPhase === 'warming' ? `${currentPeriod!.name} 预热中` :
+              rushPhase === 'trading' ? `${currentPeriod!.name} 进货中` :
               rushPhase === 'preview' ? '今日开市预览' :
               rushPhase === 'ended'   ? '今日已结束'    :
               `${timeSlots.length + todayActivities.length} 个时段`
@@ -869,13 +795,7 @@ export default function MRushPage() {
         </div>
 
         {/* ── 阶段提示区 ── */}
-        {/* 早场预热：倒计时横幅（距正式抢购倒计时，精确到秒） */}
-        {rushPhase === 'warming' && (
-          <div className="px-4 pt-3">
-            <WarmingCountdown targetMinute={formalStartMinute} />
-          </div>
-        )}
-        {/* 正式抢购：规则说明横幅（按商家身份展示可抢单数与规则） */}
+        {/* 正式进货：规则说明横幅（按商家身份展示可进货数与规则） */}
         {rushPhase === 'trading' && currentPeriod && mobileUser && !mobileUser.is_super_admin && referralCount !== null && (
           <RushRuleBanner
             merchantType={mobileUser.merchant_type as 'trial' | 'regular'}
@@ -888,14 +808,14 @@ export default function MRushPage() {
           />
         )}
 
-        {/* 库存数据不对外展示，用户仅可见商品信息与抢单按钮 */}
+        {/* 库存数据不对外展示，用户仅可见商品信息与进货按钮 */}
 
-        {/* ── 正式商家今日抢购记录 ── */}
+        {/* ── 正式商家今日进货记录 ── */}
         {mobileUser?.merchant_type === 'regular' && (
           <div className="mx-4 mt-3 rounded-xl border border-border bg-card overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
               <ListOrdered size={14} className="text-orange-500 shrink-0" />
-              <span className="text-sm font-semibold text-foreground">今日抢购记录</span>
+              <span className="text-sm font-semibold text-foreground">今日进货记录</span>
               <Badge className="bg-orange-500/10 text-orange-600 border-orange-200 text-[10px] px-1.5 py-0 ml-auto">
                 {todayRushOrders.length} 单
               </Badge>
@@ -903,7 +823,7 @@ export default function MRushPage() {
             {todayRushOrders.length === 0 ? (
               <div className="px-4 py-4 flex items-center gap-2 text-muted-foreground">
                 <Clock size={13} className="shrink-0" />
-                <span className="text-xs">抢购开始后，您的抢单将在此展示，请耐心等待</span>
+                <span className="text-xs">进货开始后，您的进货将在此展示，请耐心等待</span>
               </div>
             ) : (
               <div className="divide-y divide-border">
@@ -949,11 +869,11 @@ export default function MRushPage() {
           ) : noSlots ? (
             <div className="text-center py-16 text-muted-foreground">
               <Zap size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">暂无抢购时段</p>
+              <p className="text-sm">暂无进货时段</p>
             </div>
 
           ) : rushPhase === 'off' || rushPhase === 'ended' ? (
-            /* 非交易日 / 今日已结束：展示下次抢单提醒 */
+            /* 非交易日 / 今日已结束：展示下次进货提醒 */
             <NextRushReminder nextRush={nextRush} />
 
           ) : rushPhase === 'preview' ? (
@@ -968,7 +888,7 @@ export default function MRushPage() {
                       <span className="text-sm font-semibold text-foreground">今日待售商品</span>
                       <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] px-1.5 py-0 border">{visibleProducts.length}件</Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground">仅预览，开抢后方可下单</span>
+                    <span className="text-xs text-muted-foreground">仅预览，进货后方可下单</span>
                   </div>
                   <div className="columns-2 gap-3">
                     {visibleProducts.map(p => {
@@ -987,7 +907,7 @@ export default function MRushPage() {
                             <p className="text-orange-500 font-bold text-sm">¥{p.consignment_price.toLocaleString()}</p>
                             <div className="w-full h-8 rounded-md bg-muted flex items-center justify-center gap-1">
                               <Clock size={11} className="text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">开抢后方可下单</span>
+                              <span className="text-xs text-muted-foreground">进货后方可下单</span>
                             </div>
                           </div>
                         </div>
@@ -1004,66 +924,23 @@ export default function MRushPage() {
               )}
             </div>
 
-          ) : rushPhase === 'warming' ? (
-            /* ── 早场预热（09:25～09:30）：只读商品 + 禁用按钮（WarmingCountdown 已在上方显示） ── */
-            visibleProducts.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">
-                <Package size={40} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm">今日商品已抢完</p>
-              </div>
-            ) : (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Eye size={15} className="text-primary" />
-                    <span className="text-sm font-semibold text-foreground">本期抢购商品</span>
-                    <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] px-1.5 py-0 border">{visibleProducts.length}件</Badge>
-                  </div>
-                  <span className="text-xs text-orange-500 font-medium animate-pulse">即将开抢</span>
-                </div>
-                <div className="columns-2 gap-3">
-                  {visibleProducts.map(p => {
-                    const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-                    return (
-                      <div key={p.id} className="break-inside-avoid mb-3 bg-card border border-border rounded-xl overflow-hidden">
-                        <div className="w-full aspect-[4/3] bg-muted overflow-hidden relative">
-                          {img ? <img src={img} alt={p.title} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                            : <div className="w-full h-full flex items-center justify-center"><Package size={28} className="text-muted-foreground" /></div>}
-                          <span className={`absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none ${p.is_resell ? 'bg-primary text-primary-foreground' : 'bg-green-500 text-white'}`}>
-                            {p.is_resell ? '转拍' : '寄卖'}
-                          </span>
-                        </div>
-                        <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-1.5">
-                          <p className="text-xs text-foreground leading-snug" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.title}</p>
-                          <p className="text-orange-500 font-bold text-sm">¥{p.consignment_price.toLocaleString()}</p>
-                          <Button size="sm" variant="outline" className="w-full h-8 text-xs gap-1" disabled onClick={() => {}}>
-                            <Clock size={11} />即将开抢
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )
-
           ) : /* trading */ visibleProducts.length === 0 ? (
-            /* ── 正式抢购 · 已抢完 ── */
+            /* ── 正式进货 · 已抢完 ── */
             <div className="text-center py-16 text-muted-foreground">
               <Package size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">今日商品已抢完</p>
               <p className="text-xs mt-1">已售出的商品已自动移除</p>
             </div>
           ) : (
-            /* ── 正式抢购（09:30～09:35）：可下单商品瀑布流 ── */
+            /* ── 正式进货（09:30～09:35）：可下单商品瀑布流 ── */
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <ShoppingBag size={15} className="text-orange-500" />
-                  <span className="text-sm font-semibold text-foreground">今日抢购商品</span>
+                  <span className="text-sm font-semibold text-foreground">今日进货商品</span>
                   <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0 border-0">{visibleProducts.length}件</Badge>
                 </div>
-                <span className="text-xs text-orange-500 font-medium animate-pulse">{currentPeriod!.name} 抢购中</span>
+                <span className="text-xs text-orange-500 font-medium animate-pulse">{currentPeriod!.name} 进货中</span>
               </div>
               <div className="columns-2 gap-3">
                 {visibleProducts.map(p => {
@@ -1091,8 +968,8 @@ export default function MRushPage() {
                           disabled={isRushingThis}
                           onClick={() => handleFlashBuy(p)}>
                           {isRushingThis
-                            ? <><span className="animate-spin inline-block">⏳</span>抢购中…</>
-                            : <><Zap size={11} />立即抢购</>}
+                            ? <><span className="animate-spin inline-block">⏳</span>进货中…</>
+                            : <><Zap size={11} />立即进货</>}
                         </Button>
                       </div>
                     </div>
@@ -1110,7 +987,7 @@ export default function MRushPage() {
             <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-1">
               <Rocket size={32} className="text-green-600" />
             </div>
-            <AlertDialogTitle className="text-lg font-black text-foreground">🎉 抢购成功！</AlertDialogTitle>
+            <AlertDialogTitle className="text-lg font-black text-foreground">🎉 进货成功！</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground text-center">
               <span className="font-medium text-foreground line-clamp-1">{successModal.title}</span>
               <br />已加入买单仓库，请尽快上传付款凭证
@@ -1127,7 +1004,7 @@ export default function MRushPage() {
               className="flex-1 bg-red-500 hover:bg-red-600 text-white gap-1 border-0"
               onClick={() => setSuccessModal({ show: false, title: '' })}
             >
-              <Zap size={13} />继续抢购
+              <Zap size={13} />继续进货
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

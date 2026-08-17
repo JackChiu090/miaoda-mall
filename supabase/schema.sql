@@ -796,7 +796,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
 -- Name: COLUMN "orders"."is_rush"; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN "public"."orders"."is_rush" IS '是否为抢购区订单（含进货快闪和进货活动），用于判断正式商家升级资格';
+COMMENT ON COLUMN "public"."orders"."is_rush" IS '是否为进货区订单（含进货快闪和进货活动），用于判断正式商家升级资格';
 
 
 --

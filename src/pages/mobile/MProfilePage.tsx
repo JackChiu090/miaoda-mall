@@ -229,9 +229,9 @@ export default function MProfilePage() {
           </div>
         </div>
 
-        {/* 今日抢单数 */}
+        {/* 今日进货数 */}
         <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-          <span>今日已抢单</span>
+          <span>今日已进货</span>
           <span className="text-primary font-bold">{todayOrders}</span>
           <span>单</span>
         </div>

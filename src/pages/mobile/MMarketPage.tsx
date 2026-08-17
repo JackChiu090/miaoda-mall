@@ -87,7 +87,7 @@ export default function MMarketPage() {
     buyEndHour: 9, buyEndMinute: 35,
   });
 
-  // 倒计时 & 抢购状态
+  // 倒计时 & 进货状态
   const [countdown, setCountdown] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [buyPhase, setBuyPhase] = useState<'before' | 'active' | 'ended'>('before');
@@ -201,7 +201,7 @@ export default function MMarketPage() {
 
   const { pullDistance, isRefreshing } = usePullToRefresh(refreshAll);
 
-  // 倒计时逻辑：同时管理「开市」和「抢购时段」
+  // 倒计时逻辑：同时管理「开市」和「进货时段」
   useEffect(() => {
     function tick() {
       const now = Date.now();
@@ -217,10 +217,10 @@ export default function MMarketPage() {
 
       if (now < buyStartTs) {
         setBuyPhase('before');
-        setBuyCountdown(buyStartTs - now); // 距抢购开始
+        setBuyCountdown(buyStartTs - now); // 距进货开始
       } else if (now < buyEndTs) {
         setBuyPhase('active');
-        setBuyCountdown(buyEndTs - now);   // 距抢购结束
+        setBuyCountdown(buyEndTs - now);   // 距进货结束
       } else {
         setBuyPhase('ended');
         setBuyCountdown(0);
@@ -236,11 +236,11 @@ export default function MMarketPage() {
     if (!mobileUser) { navigate('/m/login'); return; }
     if (buyPhase !== 'active') {
       toast.error(buyPhase === 'before'
-        ? `抢购 ${config.buyStartHour}:${String(config.buyStartMinute).padStart(2,'0')} 才开始，请稍候`
-        : '本轮抢购已结束，请明天再来');
+        ? `进货 ${config.buyStartHour}:${String(config.buyStartMinute).padStart(2,'0')} 才开始，请稍候`
+        : '本轮进货已结束，请明天再来');
       return;
     }
-    // 检查今日抢单数限制（主场阶梯：0人完成销售→0单；N人→N+1单，封顶6单）
+    // 检查今日进货数限制（主场阶梯：0人完成销售→0单；N人→N+1单，封顶6单）
     const bjTodayStart2 = new Date(Math.floor((Date.now() + 8 * 3600000) / 86400000) * 86400000 - 8 * 3600000).toISOString();
     const [{ count: todayCnt }, { data: referredUsers2 }] = await Promise.all([
       supabase.from('orders').select('id', { count: 'exact', head: true })
@@ -257,12 +257,12 @@ export default function MMarketPage() {
     // 阶梯计算：0人完成销售→0单；N人→N+1单，封顶6单
     const dayLimit = rc === 0 ? 0 : Math.min(rc + 1, 6);
     if (dayLimit === 0) {
-      toast.error('主场抢购需至少推荐 1 位好友并完成销售才可参与');
+      toast.error('主场进货需至少推荐 1 位好友并完成销售才可参与');
       return;
     }
     if ((todayCnt ?? 0) >= dayLimit) {
       const hint = rc < 5 ? `，推荐更多好友可提升上限（最多6单）` : '';
-      toast.error(`今日抢单已达上限（${dayLimit}单）${hint}`);
+      toast.error(`今日进货已达上限（${dayLimit}单）${hint}`);
       return;
     }
 
@@ -337,7 +337,7 @@ export default function MMarketPage() {
           </div>
         )}
 
-        {/* ── 抢购导航条（开市后全程显示） ── */}
+        {/* ── 进货导航条（开市后全程显示） ── */}
         {isOpen && (
           <div className={`mx-4 mt-3 rounded-2xl overflow-hidden border ${
             buyPhase === 'active'
@@ -355,15 +355,15 @@ export default function MMarketPage() {
               <div className="flex-1 min-w-0">
                 {buyPhase === 'before' && (
                   <>
-                    <p className="text-xs font-semibold text-foreground">抢购即将开始</p>
+                    <p className="text-xs font-semibold text-foreground">进货即将开始</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {buyStartLabel} – {buyEndLabel} 限时抢购，共 <span className="font-medium text-foreground">{products.length}</span> 件
+                      {buyStartLabel} – {buyEndLabel} 限时进货，共 <span className="font-medium text-foreground">{products.length}</span> 件
                     </p>
                   </>
                 )}
                 {buyPhase === 'active' && (
                   <>
-                    <p className="text-xs font-semibold text-orange-600">🔥 抢购进行中！</p>
+                    <p className="text-xs font-semibold text-orange-600">🔥 进货进行中！</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
                       {buyEndLabel} 结束 · 共 <span className="font-medium text-foreground">{products.length}</span> 件，手快有手慢无
                     </p>
@@ -371,8 +371,8 @@ export default function MMarketPage() {
                 )}
                 {buyPhase === 'ended' && (
                   <>
-                    <p className="text-xs font-semibold text-muted-foreground">本轮抢购已结束</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">明天 {buyStartLabel} 再来抢购</p>
+                    <p className="text-xs font-semibold text-muted-foreground">本轮进货已结束</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">明天 {buyStartLabel} 再来进货</p>
                   </>
                 )}
               </div>
@@ -383,14 +383,14 @@ export default function MMarketPage() {
                     : 'bg-primary text-primary-foreground'
                 }`}>
                   <p className="text-base font-bold font-mono leading-none tracking-widest">{formatCountdown(buyCountdown)}</p>
-                  <p className="text-[9px] mt-0.5 opacity-80">{buyPhase === 'active' ? '距结束' : '距开抢'}</p>
+                  <p className="text-[9px] mt-0.5 opacity-80">{buyPhase === 'active' ? '距结束' : '距进货'}</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ── 今日抢购资格卡片（已登录时显示） ── */}
+        {/* ── 今日进货资格卡片（已登录时显示） ── */}
         {mobileUser && referralCount !== null && (
           <div className="mx-4 mt-2 rounded-xl border border-border bg-card overflow-hidden">
             <div className="flex items-stretch divide-x divide-border">
@@ -438,7 +438,7 @@ export default function MMarketPage() {
                   <div className="bg-destructive/5 border-t border-destructive/20 px-3 py-1.5 flex items-center gap-1.5">
                     <Lock size={11} className="text-destructive shrink-0" />
                     <span className="text-[10px] text-destructive">
-                      需至少推荐 1 位好友并完成销售才可参与主场抢购
+                      需至少推荐 1 位好友并完成销售才可参与主场进货
                     </span>
                   </div>
                 );
@@ -500,7 +500,7 @@ export default function MMarketPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Package size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">{search ? '未找到相关商品' : '暂无抢单商品，请等待每天开市'}</p>
+              <p className="text-sm">{search ? '未找到相关商品' : '暂无进货商品，请等待每天开市'}</p>
             </div>
           ) : (
             /* 瀑布流：columns-2，每张卡片 break-inside-avoid */
@@ -590,15 +590,15 @@ export default function MMarketPage() {
                           }}
                         >
                           {isBuying ? (
-                            <><span className="animate-spin inline-block">⏳</span>抢购中...</>
+                            <><span className="animate-spin inline-block">⏳</span>进货中...</>
                           ) : !isOpen ? (
                             <><Lock size={11} />未开始</>
                           ) : isPreheating ? (
-                            <><Clock size={11} />即将开抢</>
+                            <><Clock size={11} />即将进货</>
                           ) : buyPhase === 'active' ? (
-                            <><Zap size={11} />立即抢购</>
+                            <><Zap size={11} />立即进货</>
                           ) : (
-                            <><Lock size={11} />抢购已结束</>
+                            <><Lock size={11} />进货已结束</>
                           )}
                         </Button>
                       )}

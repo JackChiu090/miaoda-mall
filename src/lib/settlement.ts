@@ -8,7 +8,7 @@
  *     - 代金券储备（voucher_reserve_rate 0.1%）→ 买方 points 账户 + 全局 voucher_pool 累计
  *     - 推广奖金（direct_referral_rate 0.2%）→ 买方直接推荐人 promotion 账户
  *  3. 推荐奖励（referral_ancestor_rate 订单金额 × 0.2%）：
- *     向上遍历推荐链，找到「当天中午12点前完成抢购订单」的最近推荐人作为奖励获得者；
+ *     向上遍历推荐链，找到「当天中午12点前完成进货订单」的最近推荐人作为奖励获得者；
  *     若整条链都未在截止前完成，则奖励给最上级推荐人（链顶兜底）
  */
 import { supabase } from '@/db/supabase';
@@ -167,11 +167,11 @@ export async function settleSellerEarnings(params: SettleParams): Promise<Settle
 }
 
 /**
- * 向上遍历推荐链，按「当天中午12点前完成抢购订单」规则递推发放推荐奖励。
+ * 向上遍历推荐链，按「当天中午12点前完成进货订单」规则递推发放推荐奖励。
  *
  * 规则（订单金额 × referral_ancestor_rate，默认 0.2%，发到 promotion 账户）：
  *  - 「当天」= 被推荐人本次结算触发时的北京日期
- *  - 「完成抢购订单」= 该推荐人作为买家、在当天中午12:00前有 confirmed 状态的抢购订单(is_rush=true)
+ *  - 「完成进货订单」= 该推荐人作为买家、在当天中午12:00前有 confirmed 状态的进货订单(is_rush=true)
  *  - 从直接推荐人开始逐级向上，找到最近的达标推荐人即奖励给他，并记录被跳过的中间层
  *  - 若整条链都未在截止时间前完成订单 → 奖励给最上级推荐人（链顶）
  *  - 若买方无任何推荐人 → 不发放
@@ -225,7 +225,7 @@ async function settleReferralReward({
 
     topReferrerId = referrerId; // 持续更新为最上级推荐人
 
-    // 检查该推荐人是否在「当天中午12:00前」完成过抢购订单（confirmed + is_rush）
+    // 检查该推荐人是否在「当天中午12:00前」完成过进货订单（confirmed + is_rush）
     const { count: rushCnt } = await supabase
       .from('orders')
       .select('id', { count: 'exact', head: true })
@@ -238,7 +238,7 @@ async function settleReferralReward({
       // 找到达标推荐人，发放奖励
       await addUserAccount(
         referrerId, 'promotion', rewardAmt, orderId,
-        `推荐奖励（当天12点前完成抢购）`,
+        `推荐奖励（当天12点前完成进货）`,
       );
       await supabase.from('referral_rewards').insert({
         order_id:     orderId,
@@ -259,7 +259,7 @@ async function settleReferralReward({
       type:             'notice',
       amount:           0,
       related_order_id: orderId,
-      description:      `推荐奖励提醒：您未在当天12点前完成抢购，本次推荐奖励已转给上级推荐人，请明日12点前完成抢购`,
+      description:      `推荐奖励提醒：您未在当天12点前完成进货，本次推荐奖励已转给上级推荐人，请明日12点前完成进货`,
       created_at:       new Date().toISOString(),
     });
     skippedIds.push(referrerId);

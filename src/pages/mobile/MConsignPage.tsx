@@ -138,7 +138,7 @@ const FEE_RATE = 0.03;export default function MConsignPage() {
           {[
             '寄卖需先完成实名认证',
             '商品提交后须等待后台审核通过方可上架',
-            '审核通过后商品进入抢单池，由买方参与抢购',
+            '审核通过后商品进入进货池，由买方参与进货',
             '买方确认收款后，平台自动结算收益',
           ].map((t, i) => (
             <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">

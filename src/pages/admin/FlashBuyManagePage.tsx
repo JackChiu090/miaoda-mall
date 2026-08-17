@@ -1,4 +1,4 @@
-// 进货市场·抢购时段管理：配置开抢/结束时间、查看今日抢购数据
+// 进货市场·进货时段管理：配置进货/结束时间、查看今日进货数据
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/db/supabase';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// ── 配置键名（抢购时间完全由 rush_time_slots 时段配置决定，此处仅保留非时间类参数）──
+// ── 配置键名（进货时间完全由 rush_time_slots 时段配置决定，此处仅保留非时间类参数）──
 const TIME_KEYS = [
   'market_open_hour', 'market_open_minute',
   'rush_max_per_day',
@@ -44,7 +44,7 @@ interface OrderRow {
 
 type BuyPhase = 'before' | 'active' | 'ended';
 
-/** 自定义抢购活动（覆盖默认时段） */
+/** 自定义进货活动（覆盖默认时段） */
 interface RushActivity {
   id: string;
   name: string;
@@ -58,7 +58,7 @@ interface RushActivity {
   created_at: string;
 }
 
-/** 抢购时段配置 */
+/** 进货时段配置 */
 interface TimeSlot {
   id: string;
   name: string;
@@ -99,11 +99,11 @@ export default function FlashBuyManagePage() {
   const [saving, setSaving] = useState(false);
   const [cfgLoading, setCfgLoading] = useState(true);
 
-  // 今日抢购订单
+  // 今日进货订单
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
 
-  // ── 抢购时段配置（rush_time_slots）──
+  // ── 进货时段配置（rush_time_slots）──
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -157,7 +157,7 @@ export default function FlashBuyManagePage() {
     setCfgLoading(false);
   }, []);
 
-  // ── 加载今日抢购订单 ──
+  // ── 加载今日进货订单 ──
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     const today = new Date().toISOString().slice(0, 10);
@@ -444,7 +444,7 @@ export default function FlashBuyManagePage() {
       .upsert(upserts, { onConflict: 'key' });
     setSaving(false);
     if (error) { toast.error('保存失败：' + error.message); return; }
-    toast.success('抢购时段配置已保存，移动端实时生效');
+    toast.success('进货时段配置已保存，移动端实时生效');
   }
 
   function setField(key: string, val: string) {
@@ -458,7 +458,7 @@ export default function FlashBuyManagePage() {
   const totalAmount    = orders.reduce((s, o) => s + Number(o.amount), 0);
 
   const phaseColor = buyPhase === 'active' ? 'text-orange-500' : buyPhase === 'ended' ? 'text-muted-foreground' : 'text-primary';
-  const phaseLabel = buyPhase === 'active' ? '🔥 抢购进行中' : buyPhase === 'before' ? '⏳ 待开始' : '✅ 已结束';
+  const phaseLabel = buyPhase === 'active' ? '🔥 进货进行中' : buyPhase === 'before' ? '⏳ 待开始' : '✅ 已结束';
 
   const statusLabel: Record<string, string> = {
     pending_payment: '待付款', payment_uploaded: '已上传凭证',
@@ -472,8 +472,8 @@ export default function FlashBuyManagePage() {
   return (
     <div className="p-6 space-y-6">
       <PageHeader
-        title="进货市场·抢购管理"
-        description="设置每日抢购开始/结束时间，实时监控今日抢购进度与订单状态"
+        title="进货市场·进货管理"
+        description="设置每日进货开始/结束时间，实时监控今日进货进度与订单状态"
         action={
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { loadCfg(); loadOrders(); loadSlots(); loadActivities(); }}>
             <RefreshCw size={14} />刷新
@@ -481,14 +481,14 @@ export default function FlashBuyManagePage() {
         }
       />
 
-      {/* ── 自定义抢购活动管理（覆盖默认时段，优先级最高）── */}
+      {/* ── 自定义进货活动管理（覆盖默认时段，优先级最高）── */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <CardTitle className="text-sm flex items-center gap-2">
                 <CalendarPlus size={16} className="text-primary shrink-0" />
-                自定义抢购活动
+                自定义进货活动
               </CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 自定义活动生效后，其时间配置将完全覆盖对应时段的默认时间逻辑（优先级高于默认时段）
@@ -570,12 +570,12 @@ export default function FlashBuyManagePage() {
         </CardContent>
       </Card>
 
-      {/* ── 抢购时段配置管理（多时段并行 + 优先级）── */}
+      {/* ── 进货时段配置管理（多时段并行 + 优先级）── */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
             <Layers size={15} className="text-primary" />
-            抢购时段配置
+            进货时段配置
             <Badge variant="secondary" className="ml-1 text-[10px]">{slots.filter(s => s.is_active).length} 个启用</Badge>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -585,7 +585,7 @@ export default function FlashBuyManagePage() {
               </DialogTrigger>
               <DialogContent className="max-w-[calc(100%-2rem)] md:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>{editingSlot ? '编辑抢购时段' : '新增抢购时段'}</DialogTitle>
+                  <DialogTitle>{editingSlot ? '编辑进货时段' : '新增进货时段'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-1">
                   <div>
@@ -606,10 +606,10 @@ export default function FlashBuyManagePage() {
                         variant={formSessionType === 'formal' ? 'default' : 'outline'}
                         size="sm" className="h-9 flex-1"
                         onClick={() => setFormSessionType('formal')}
-                      >🔥 正式抢购</Button>
+                      >🔥 正式进货</Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      早场：体验商家可选抢2单 / 正式商家系统自动2单；正式抢购：按推荐人数阶梯（1人→1单，最多3单）
+                      早场：体验商家可选抢2单 / 正式商家系统自动2单；正式进货：按推荐人数阶梯（1人→1单，最多3单）
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -691,7 +691,7 @@ export default function FlashBuyManagePage() {
                       <TableCell className="whitespace-nowrap font-medium text-sm">{slot.name}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         <Badge variant="outline" className={`text-[10px] ${slot.session_type === 'early' ? 'border-orange-300 text-orange-500' : 'border-primary/40 text-primary'}`}>
-                          {slot.session_type === 'early' ? '早场' : '正式抢购'}
+                          {slot.session_type === 'early' ? '早场' : '正式进货'}
                         </Badge>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-xs font-mono">{minsToTime(slot.start_minute)}</TableCell>
@@ -782,7 +782,7 @@ export default function FlashBuyManagePage() {
           <p className="text-xs text-muted-foreground mt-0.5">
             {slots.filter(s => s.is_active).length > 0
               ? slots.filter(s => s.is_active).map(s => `${minsToTime(s.start_minute)}–${minsToTime(s.end_minute)}`).join('  ·  ')
-              : '尚未配置抢购时段'}
+              : '尚未配置进货时段'}
           </p>
         </div>
         {buyPhase !== 'ended' && (
@@ -790,7 +790,7 @@ export default function FlashBuyManagePage() {
             buyPhase === 'active' ? 'bg-orange-500 text-white' : 'bg-primary text-primary-foreground'
           }`}>
             <p className="text-xl font-bold font-mono leading-none tracking-widest">{formatCd(countdown)}</p>
-            <p className="text-[10px] mt-1 opacity-80">{buyPhase === 'active' ? '距结束' : '距开抢'}</p>
+            <p className="text-[10px] mt-1 opacity-80">{buyPhase === 'active' ? '距结束' : '距进货'}</p>
           </div>
         )}
       </div>
@@ -830,11 +830,11 @@ export default function FlashBuyManagePage() {
                   </div>
                 </div>
 
-                {/* 📋 抢购时间说明 */}
+                {/* 📋 进货时间说明 */}
                 <div className="border border-orange-200/60 rounded-lg p-3 bg-orange-500/5">
-                  <Label className="text-xs font-semibold text-orange-600 mb-2 block">📋 抢购时间配置</Label>
+                  <Label className="text-xs font-semibold text-orange-600 mb-2 block">📋 进货时间配置</Label>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    抢购的开始与结束时间已完全交由上方「时段参数配置」模块统一管理。
+                    进货的开始与结束时间已完全交由上方「时段参数配置」模块统一管理。
                     请在下方新增/编辑时段，设置各时段的开始分钟、结束分钟、库存限额与价格折扣，系统将严格按此执行。
                   </p>
                   {slots.filter(s => s.is_active).length > 0 && (
@@ -943,7 +943,7 @@ export default function FlashBuyManagePage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users size={14} className="text-primary" />
-                今日抢购订单
+                今日进货订单
                 <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={loadOrders}>
                   <RefreshCw size={11} />
                 </Button>
@@ -1022,7 +1022,7 @@ export default function FlashBuyManagePage() {
           <div className="space-y-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">活动名称</label>
-              <Input value={actName} onChange={e => setActName(e.target.value)} placeholder="如：周末特惠抢购" className="px-2" />
+              <Input value={actName} onChange={e => setActName(e.target.value)} placeholder="如：周末特惠进货" className="px-2" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">活动日期</label>
@@ -1032,7 +1032,7 @@ export default function FlashBuyManagePage() {
               <label className="text-xs font-medium text-muted-foreground mb-1 block">场次类型</label>
               <div className="flex gap-2">
                 <Button size="sm" variant={actSessionType === 'early' ? 'default' : 'outline'} className="flex-1" onClick={() => setActSessionType('early')}>🌅 早场</Button>
-                <Button size="sm" variant={actSessionType === 'formal' ? 'default' : 'outline'} className="flex-1" onClick={() => setActSessionType('formal')}>🔥 正式抢购</Button>
+                <Button size="sm" variant={actSessionType === 'formal' ? 'default' : 'outline'} className="flex-1" onClick={() => setActSessionType('formal')}>🔥 正式进货</Button>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

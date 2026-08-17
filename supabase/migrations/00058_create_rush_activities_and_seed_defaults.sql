@@ -1,4 +1,4 @@
--- ── 自定义抢购活动表（覆盖默认时段）──
+-- ── 自定义进货活动表（覆盖默认时段）──
 CREATE TABLE public.rush_activities (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
@@ -30,11 +30,11 @@ CREATE POLICY "rush_activities_admin_write" ON public.rush_activities
 ALTER TABLE public.orders
   ADD COLUMN rush_activity_id uuid REFERENCES public.rush_activities(id) ON DELETE SET NULL;
 
--- ── 种子默认抢购时段（仅当 rush_time_slots 为空时）──
+-- ── 种子默认进货时段（仅当 rush_time_slots 为空时）──
 INSERT INTO public.rush_time_slots (name, start_minute, end_minute, session_type, stock_limit, price_discount, priority, is_active)
 SELECT v.name, v.start_minute, v.end_minute, v.session_type::text, v.stock_limit, v.price_discount::numeric, v.priority, v.is_active
 FROM (VALUES
-  ('早市', 569, 570, 'early', 2, 1.0, 1, true),
-  ('主场抢购', 570, 575, 'formal', 3, 1.0, 2, true)
+  ('早场', 565, 570, 'early', 2, 1.0, 1, true),
+  ('主场', 570, 575, 'formal', 3, 1.0, 2, true)
 ) AS v(name, start_minute, end_minute, session_type, stock_limit, price_discount, priority, is_active)
 WHERE NOT EXISTS (SELECT 1 FROM public.rush_time_slots);

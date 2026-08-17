@@ -28,19 +28,19 @@ const RATE_CONFIG = [
 // 业务规则
 const RULE_CONFIG = [
   { key: 'resell_premium_rate',             label: '转拍固定溢价率',         desc: '每轮交易流转自动加价比例（如 0.03 = 3%）',                   unit: '%' },
-  { key: 'trial_required_days',             label: '体验商家考核工作日数',   desc: '体验商家需在此工作日天数内每天完成抢购，否则视为考核不达标（默认15天）', unit: '天' },
-  { key: 'trial_daily_rush_min',            label: '体验商家每日最低抢购',   desc: '体验商家工作日内至少需完成的抢购单数（默认1单）',             unit: '单' },
-  { key: 'trial_daily_rush_max',            label: '体验商家每日最高抢购',   desc: '体验商家工作日内最多可完成的抢购单数（默认2单）',             unit: '单' },
-  { key: 'regular_daily_rush_min',          label: '正式商家每日必须抢购',   desc: '正式商家工作日内每天必须完成的抢购单数（默认2单）',           unit: '单' },
+  { key: 'trial_required_days',             label: '体验商家考核工作日数',   desc: '体验商家需在此工作日天数内每天完成进货，否则视为考核不达标（默认15天）', unit: '天' },
+  { key: 'trial_daily_rush_min',            label: '体验商家每日最低进货',   desc: '体验商家工作日内至少需完成的进货单数（默认1单）',             unit: '单' },
+  { key: 'trial_daily_rush_max',            label: '体验商家每日最高进货',   desc: '体验商家工作日内最多可完成的进货单数（默认2单）',             unit: '单' },
+  { key: 'regular_daily_rush_min',          label: '正式商家每日必须进货',   desc: '正式商家工作日内每天必须完成的进货单数（默认2单）',           unit: '单' },
   { key: 'voucher_pool_redeem_threshold',   label: '代金券兑换门槛',         desc: '代金券资金池累计满此金额可申请兑换实物商品',                 unit: '元' },
   { key: 'voucher_min_direct_referrals',    label: '兑换最低直推人数',       desc: '申请代金券兑换时须满足的直推人数',                          unit: '人' },
-  { key: 'rush_display_hour',               label: '首页抢购展示时间',       desc: '每天从几点开始在首页显示抢购商品（0-23）',                   unit: '时' },
+  { key: 'rush_display_hour',               label: '首页进货展示时间',       desc: '每天从几点开始在首页显示进货商品（0-23）',                   unit: '时' },
 ];
 
-// 抢购额度规则（时间完全由「抢购管理-时段参数配置」模块决定，此处仅保留额度参数）
+// 进货额度规则（时间完全由「进货管理-时段参数配置」模块决定，此处仅保留额度参数）
 const RUSH_MAIN_CONFIG = [
   { key: 'rush_referral_per_unit', label: '每单所需直推人数',     desc: '直推N人可抢1单，推荐2人抢2单，推荐3人抢3单（默认1人/单）',    unit: '人' },
-  { key: 'rush_max_per_day',       label: '每日抢单封顶单数',     desc: '无论推荐多少人，单日可抢单数上限（默认3单）',                  unit: '单' },
+  { key: 'rush_max_per_day',       label: '每日进货封顶单数',     desc: '无论推荐多少人，单日可进货数上限（默认3单）',                  unit: '单' },
 ];
 
 const SETTINGS_CONFIG = [
@@ -118,7 +118,7 @@ export default function SettingsPage() {
 
   return (
     <AdminLayout>
-      <PageHeader title="系统基础设置" description="管理平台名称、联系方式、费率及业务规则参数；市场时段参数请前往「抢购时段管理」页配置" />
+      <PageHeader title="系统基础设置" description="管理平台名称、联系方式、费率及业务规则参数；市场时段参数请前往「进货时段管理」页配置" />
 
       <div className="max-w-3xl space-y-4">
         {loading ? (
@@ -173,12 +173,12 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* 主场抢购规则 */}
+            {/* 主场进货规则 */}
             <div className="bg-card border border-border rounded-sm p-5 space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">主场抢购规则</h3>
+                <h3 className="text-sm font-semibold text-foreground">主场进货规则</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  工作日主场抢购时间窗口及推荐人数阶梯上限配置，修改后实时生效
+                  工作日主场进货时间窗口及推荐人数阶梯上限配置，修改后实时生效
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -194,7 +194,7 @@ export default function SettingsPage() {
               <div className="p-3 rounded-sm border border-border bg-muted/40 text-xs text-muted-foreground space-y-0.5">
                 <p className="font-medium text-foreground">当前规则预览</p>
                 <p>
-                  抢购时间：由「抢购管理 → 时段参数配置」模块统一设定，系统严格按配置时段执行
+                  进货时间：由「进货管理 → 时段参数配置」模块统一设定，系统严格按配置时段执行
                 </p>
                 <p>
                   阶梯上限：直推 1 人→1 单 / 直推 2 人→2 单 / 直推 3 人→3 单，每日最多{' '}

@@ -75,7 +75,7 @@ DELETE FROM daily_screenings;
 -- Step 21: 淘汰记录
 DELETE FROM elimination_records;
 
--- Step 22: 抢购早鸟
+-- Step 22: 进货早鸟
 DELETE FROM rush_early_access;
 
 -- Step 23: 通知

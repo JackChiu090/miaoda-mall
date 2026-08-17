@@ -83,7 +83,7 @@ function PhonePreview({ sections }: { sections: PageSection[] }) {
           {/* 顶栏 */}
           <div className="bg-[#df2828] px-3 pt-3 pb-2.5">
             <p className="text-[8px] text-white/80">你好，用户 👋</p>
-            <p className="text-[11px] font-bold text-white">众泰商城</p>
+            <p className="text-[11px] font-bold text-white">众泰成商城</p>
           </div>
           {/* 区块渲染 */}
           {sorted.map(s => {
@@ -94,7 +94,7 @@ function PhonePreview({ sections }: { sections: PageSection[] }) {
                 return (
                   <div key={s.id} className="mx-2 mt-2 h-14 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center px-3 gap-2">
                     <div>
-                      <p className="text-[8px] font-bold text-white">限时抢单</p>
+                      <p className="text-[8px] font-bold text-white">限时进货</p>
                       <p className="text-[6px] text-white/70">精选好货</p>
                     </div>
                     <div className="ml-auto flex gap-0.5">
@@ -105,7 +105,7 @@ function PhonePreview({ sections }: { sections: PageSection[] }) {
               case 'quick_nav':
                 return (
                   <div key={s.id} className="mx-2 mt-2 bg-card border border-border rounded-xl p-2 grid grid-cols-4 gap-1">
-                    {['进货市场','限时抢单','代金券兑换','我的订单'].map(label => (
+                    {['进货市场','限时进货','代金券兑换','我的订单'].map(label => (
                       <div key={label} className="flex flex-col items-center gap-0.5">
                         <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
                           <Icon size={9} className="text-primary" />

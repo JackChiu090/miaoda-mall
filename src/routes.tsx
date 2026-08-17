@@ -153,7 +153,7 @@ export const routes: RouteConfig[] = [
   { name: '寄卖商品管理', path: '/consign-manage', element: guard(<ConsignManagePage />) },
   { name: '商品分类', path: '/categories', element: guard(<CategoriesPage />) },
   { name: '费率配置', path: '/fee-config', element: guard(<FeeConfigPage />) },
-  { name: '9:29抢单资格', path: '/rush-list', element: guard(<RushListPage />) },
+  { name: '9:29进货资格', path: '/rush-list', element: guard(<RushListPage />) },
 
   // 订单管理
   { name: '订单列表', path: '/orders', element: guard(<OrdersPage />) },
@@ -180,11 +180,11 @@ export const routes: RouteConfig[] = [
   // 招商考核管理
   { name: '招商考核', path: '/merchant-assessment', element: guard(<MerchantAssessmentPage />) },
 
-  // 进货市场·抢购管理
-  { name: '抢购时段管理', path: '/flash-buy-manage', element: guard(<FlashBuyManagePage />) },
+  // 进货市场·进货管理
+  { name: '进货时段管理', path: '/flash-buy-manage', element: guard(<FlashBuyManagePage />) },
   { name: '早市分级激励', path: '/morning-incentive', element: guard(<MorningIncentivePage />) },
   { name: '测试数据清除', path: '/clear-test-data', element: guard(<ClearTestDataPage />) },
-  { name: '抢单商品管理', path: '/rush-products', element: guard(<RushProductsPage />) },
+  { name: '进货商品管理', path: '/rush-products', element: guard(<RushProductsPage />) },
   { name: '转拍时间设置', path: '/resell-config', element: guard(<ResellConfigPage />) },
 
   // 拆单管理
@@ -228,7 +228,7 @@ export const routes: RouteConfig[] = [
   // { name: '商品寄卖', path: '/m/consign', element: <MConsignPage />, public: true },  // 已隐藏：商品由管理员统一添加
 
   // 交易域
-  { name: '限时抢单', path: '/m/rush', element: <MRushPage />, public: true },
+  { name: '限时进货', path: '/m/rush', element: <MRushPage />, public: true },
   { name: '我的订单', path: '/m/orders', element: <MOrdersPage />, public: true },
   { name: '订单详情', path: '/m/order/:id', element: <MOrderDetailPage />, public: true },
   { name: '上传付款凭证', path: '/m/payment/:orderId', element: <MPaymentPage />, public: true },

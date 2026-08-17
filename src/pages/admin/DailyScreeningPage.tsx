@@ -1,4 +1,4 @@
-// 出勤监控：商家每日抢购出勤情况查看（体验商家1单/正式商家2单）
+// 出勤监控：商家每日进货出勤情况查看（体验商家1单/正式商家2单）
 import { useEffect, useState } from 'react';
 import { supabase } from '@/db/supabase';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ export default function DailyScreeningPage() {
 
     if (!merchants) { setLoading(false); return; }
 
-    // 查询所选日期内每位商家的抢购订单数
+    // 查询所选日期内每位商家的进货订单数
     const dayStart = `${dateFilter}T00:00:00+08:00`;
     const dayEnd   = `${dateFilter}T23:59:59+08:00`;
     const { data: orders } = await supabase
@@ -90,7 +90,7 @@ export default function DailyScreeningPage() {
     <div className="p-6 space-y-6">
       <PageHeader
         title="出勤监控"
-        description="体验商家每日至少抢购1单（15个工作日内），正式商家每日至少抢购2单；工作日9:29早场、9:30主场开放抢购"
+        description="体验商家每日至少进货1单（15个工作日内），正式商家每日至少进货2单；工作日9:29早场、9:30主场开放进货"
         action={
           <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
             <RefreshCw size={14} />刷新

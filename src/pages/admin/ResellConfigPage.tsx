@@ -83,7 +83,7 @@ export default function ResellConfigPage() {
       <div className="p-6 max-w-2xl space-y-6">
         <PageHeader
           title="转拍时间设置"
-          description="设置每日开放转拍的起始时间，规则：周一至周五该时间起，持续到次日进货抢购开始前"
+          description="设置每日开放转拍的起始时间，规则：周一至周五该时间起，持续到次日进货进货开始前"
         />
 
         {/* 手动强制开启卡片 */}
@@ -131,7 +131,7 @@ export default function ResellConfigPage() {
               <Clock size={16} className="text-primary" />每日转拍开始时间
             </CardTitle>
             <CardDescription>
-              当前设置：每周一至周五 <span className="font-semibold text-foreground">{displayTime}</span> 开始允许转拍，持续至次日进货抢购开始前
+              当前设置：每周一至周五 <span className="font-semibold text-foreground">{displayTime}</span> 开始允许转拍，持续至次日进货进货开始前
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">

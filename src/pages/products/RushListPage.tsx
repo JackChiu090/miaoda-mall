@@ -1,4 +1,4 @@
-// 9:29 体验商家抢单资格管理
+// 9:29 体验商家进货资格管理
 import { useEffect, useState } from 'react';
 import { supabase } from '@/db/supabase';
 import AdminLayout from '@/components/layouts/AdminLayout';
@@ -75,10 +75,10 @@ export default function RushListPage() {
     });
     setSaving(false);
     if (error) {
-      toast.error(error.code === '23505' ? '该用户已在9:29抢单列表中' : '添加失败');
+      toast.error(error.code === '23505' ? '该用户已在9:29进货列表中' : '添加失败');
       return;
     }
-    toast.success(`已将 ${selectedUser.nickname || selectedUser.phone} 加入9:29抢单资格`);
+    toast.success(`已将 ${selectedUser.nickname || selectedUser.phone} 加入9:29进货资格`);
     setShowAdd(false);
     setPhoneSearch('');
     setUserResults([]);
@@ -90,7 +90,7 @@ export default function RushListPage() {
   async function handleRemove(row: AccessRow) {
     const { error } = await supabase.from('rush_early_access').delete().eq('id', row.id);
     if (error) { toast.error('移除失败'); return; }
-    toast.success('已移除抢单资格');
+    toast.success('已移除进货资格');
     load();
   }
 
@@ -104,8 +104,8 @@ export default function RushListPage() {
   return (
     <AdminLayout>
       <PageHeader
-        title="9:29 早场抢单资格"
-        description="体验商家/正式商家均可参与9:29早场抢购，每人当日最多抢2单；此列表用于手动管理额外开放资格"
+        title="9:29 早场进货资格"
+        description="体验商家/正式商家均可参与9:29早场进货，每人当日最多抢2单；此列表用于手动管理额外开放资格"
       />
 
       {/* 统计卡 */}
@@ -207,7 +207,7 @@ export default function RushListPage() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="max-w-[calc(100%-2rem)] md:max-w-md">
           <DialogHeader>
-            <DialogTitle>手动添加9:29抢单资格</DialogTitle>
+            <DialogTitle>手动添加9:29进货资格</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">

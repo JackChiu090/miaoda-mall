@@ -1,4 +1,4 @@
-// 进货抢单商品管理：管理员手动添加/上下架进货市场抢购商品
+// 进货进货商品管理：管理员手动添加/上下架进货市场进货商品
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/db/supabase';
 import AdminLayout from '@/components/layouts/AdminLayout';
@@ -231,7 +231,7 @@ export default function RushProductsPage() {
   // ── 保存（新增/编辑）──
   async function handleSave() {
     if (!form.title.trim())                                  { toast.error('请输入商品名称'); return; }
-    if (!form.consignment_price || isNaN(Number(form.consignment_price))) { toast.error('请输入有效抢购价'); return; }
+    if (!form.consignment_price || isNaN(Number(form.consignment_price))) { toast.error('请输入有效进货价'); return; }
     if (images.length === 0)                                 { toast.error('请至少上传一张图片'); return; }
 
     setSaving(true);
@@ -264,7 +264,7 @@ export default function RushProductsPage() {
       status:    'approved',
       is_active: true,
       is_resell: false,
-      // 后台管理员新增的抢单商品，归属刘鑫（13924151349）寄卖
+      // 后台管理员新增的进货商品，归属刘鑫（13924151349）寄卖
       seller_id: 'a256890e-d87a-4b90-8158-301007001c23',
     };
 
@@ -313,8 +313,8 @@ export default function RushProductsPage() {
     <AdminLayout>
       <div className="p-6 space-y-6">
         <PageHeader
-          title="进货抢单商品管理"
-          description={`管理进货市场中可供用户抢购的商品，当前共 ${total} 件`}
+          title="进货进货商品管理"
+          description={`管理进货市场中可供用户进货的商品，当前共 ${total} 件`}
           action={
             <div className="flex gap-2">
               <Button variant="outline" onClick={openCopy} className="gap-2">
@@ -501,7 +501,7 @@ export default function RushProductsPage() {
       <Dialog open={formOpen} onOpenChange={open => { if (!open) setFormOpen(false); }}>
         <DialogContent className="max-w-[calc(100%-2rem)] md:max-w-xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? '编辑抢单商品' : '手动添加抢单商品'}</DialogTitle>
+            <DialogTitle>{editingId ? '编辑进货商品' : '手动添加进货商品'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {/* 商品名称 */}
@@ -536,7 +536,7 @@ export default function RushProductsPage() {
               </div>
             </div>
 
-            {/* 市场价 & 抢购价 */}
+            {/* 市场价 & 进货价 */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>市场参考价（元）</Label>
@@ -547,7 +547,7 @@ export default function RushProductsPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>抢购价（元）<span className="text-destructive">*</span></Label>
+                <Label>进货价（元）<span className="text-destructive">*</span></Label>
                 <Input
                   type="number" min="0" placeholder="0.00"
                   value={form.consignment_price}
@@ -555,7 +555,7 @@ export default function RushProductsPage() {
                 />
                 {form.consignment_price && !isNaN(Number(form.consignment_price)) && (
                   <p className="text-xs text-muted-foreground">
-                    抢购价：¥{Number(form.consignment_price).toFixed(2)}
+                    进货价：¥{Number(form.consignment_price).toFixed(2)}
                   </p>
                 )}
               </div>
@@ -669,7 +669,7 @@ export default function RushProductsPage() {
                 <div className="flex justify-between"><span className="text-muted-foreground">成色</span><span>{previewItem.condition}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">代数</span><span>第 {previewItem.generation} 代</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">市场价</span><span>¥{previewItem.original_price?.toLocaleString()}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">抢购价</span><span className="font-bold text-primary text-base">¥{previewItem.consignment_price?.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">进货价</span><span className="font-bold text-primary text-base">¥{previewItem.consignment_price?.toLocaleString()}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">状态</span>
                   <Badge variant={previewItem.is_active ? 'default' : 'secondary'}>{previewItem.is_active ? '已上架' : '已下架'}</Badge>
                 </div>
@@ -707,7 +707,7 @@ export default function RushProductsPage() {
             <DialogTitle>从正价寄卖商品复制</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground -mt-2">
-            选择一件已上架的寄卖商品，信息将自动预填到新增表单中，可修改后上架为抢单商品。
+            选择一件已上架的寄卖商品，信息将自动预填到新增表单中，可修改后上架为进货商品。
           </p>
 
           {/* 搜索框 */}
