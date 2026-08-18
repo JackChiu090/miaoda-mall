@@ -95,31 +95,34 @@ export default function MMarketPage() {
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 已完成销售的被推荐人数 & 今日可抢上限
-  // 阶梯规则：0人→0单；1人→2单；2人→3单；...；5人→6单（封顶）
+  // 已成为正式商家的被推荐人数 & 今日可抢上限
+  // 阶梯规则：0人→0单；1人→2单；2人→3单；...；5人→6单（封顶，参数可调）
   const [referralCount, setReferralCount] = useState<number | null>(null);
   const [todayOrderCount, setTodayOrderCount] = useState<number | null>(null);
+  const [maxPerDay, setMaxPerDay] = useState(6);
 
   const loadRushStats = useCallback(async () => {
     if (!mobileUser) return;
     const bjTodayStart = new Date(Math.floor((Date.now() + 8 * 3600000) / 86400000) * 86400000 - 8 * 3600000).toISOString();
-    const [{ count: todayCnt }, { data: referredUsers }] = await Promise.all([
+    const [{ count: todayCnt }, { data: referredUsers }, { data: maxRow }] = await Promise.all([
       supabase.from('orders').select('id', { count: 'exact', head: true })
         .eq('buyer_id', mobileUser.id).gte('created_at', bjTodayStart),
       supabase.from('users').select('id').eq('referrer_id', mobileUser.id),
+      supabase.from('system_settings').select('value').eq('key', 'rush_max_per_day').maybeSingle(),
     ]);
-    // 主场阶梯依据：被推荐人中"已完成订单销售"（作为买家有 confirmed 订单）的去重人数
+    // 主场阶梯依据：被推荐人中"已成为正式商家"（merchant_type=regular）的人数
     let completedRefCnt = 0;
     const referredIds = (referredUsers ?? []).map((u: { id: string }) => u.id);
     if (referredIds.length > 0) {
-      const { data: completedBuyers } = await supabase.from('orders')
-        .select('buyer_id')
-        .in('buyer_id', referredIds)
-        .eq('status', 'confirmed');
-      completedRefCnt = new Set((completedBuyers ?? []).map((o: { buyer_id: string }) => o.buyer_id)).size;
+      const { data: regularMerchants } = await supabase.from('users')
+        .select('id')
+        .in('id', referredIds)
+        .eq('merchant_type', 'regular');
+      completedRefCnt = (regularMerchants ?? []).length;
     }
     setReferralCount(completedRefCnt);
     setTodayOrderCount(todayCnt ?? 0);
+    setMaxPerDay(parseInt(maxRow?.value ?? '6') || 6);
   }, [mobileUser]);
 
   // 读取系统配置
@@ -240,7 +243,7 @@ export default function MMarketPage() {
         : '本轮进货已结束，请明天再来');
       return;
     }
-    // 检查今日进货数限制（主场阶梯：0人完成销售→0单；N人→N+1单，封顶6单）
+    // 检查今日进货数限制（主场阶梯：0人→0单；N人(正式商家)→N+1单，封顶 maxPerDay 单）
     const bjTodayStart2 = new Date(Math.floor((Date.now() + 8 * 3600000) / 86400000) * 86400000 - 8 * 3600000).toISOString();
     const [{ count: todayCnt }, { data: referredUsers2 }] = await Promise.all([
       supabase.from('orders').select('id', { count: 'exact', head: true })
@@ -250,18 +253,18 @@ export default function MMarketPage() {
     const referredIds2 = (referredUsers2 ?? []).map((u: { id: string }) => u.id);
     let rc = 0;
     if (referredIds2.length > 0) {
-      const { data: completedBuyers2 } = await supabase.from('orders')
-        .select('buyer_id').in('buyer_id', referredIds2).eq('status', 'confirmed');
-      rc = new Set((completedBuyers2 ?? []).map((o: { buyer_id: string }) => o.buyer_id)).size;
+      const { data: regularMerchants2 } = await supabase.from('users')
+        .select('id').in('id', referredIds2).eq('merchant_type', 'regular');
+      rc = (regularMerchants2 ?? []).length;
     }
-    // 阶梯计算：0人完成销售→0单；N人→N+1单，封顶6单
-    const dayLimit = rc === 0 ? 0 : Math.min(rc + 1, 6);
+    // 阶梯计算：0人(正式商家)→0单；N人→N+1单，封顶 maxPerDay 单
+    const dayLimit = rc === 0 ? 0 : Math.min(rc + 1, maxPerDay);
     if (dayLimit === 0) {
-      toast.error('主场进货需至少推荐 1 位好友并完成销售才可参与');
+      toast.error('主场进货需至少推荐 1 位好友并成为正式商家才可参与');
       return;
     }
     if ((todayCnt ?? 0) >= dayLimit) {
-      const hint = rc < 5 ? `，推荐更多好友可提升上限（最多6单）` : '';
+      const hint = rc < maxPerDay - 1 ? `，推荐更多好友可提升上限（最多${maxPerDay}单）` : '';
       toast.error(`今日进货已达上限（${dayLimit}单）${hint}`);
       return;
     }
@@ -394,15 +397,15 @@ export default function MMarketPage() {
         {mobileUser && referralCount !== null && (
           <div className="mx-4 mt-2 rounded-xl border border-border bg-card overflow-hidden">
             <div className="flex items-stretch divide-x divide-border">
-              {/* 完成销售的推荐人数 */}
+              {/* 已成为正式商家的推荐人数 */}
               <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
                 <span className="text-lg font-black text-primary leading-none">{referralCount}</span>
-                <span className="text-[10px] text-muted-foreground">完成销售</span>
+                <span className="text-[10px] text-muted-foreground">正式商家</span>
               </div>
               {/* 今日可抢 */}
               <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
                 {(() => {
-                  const dayLimit = referralCount === 0 ? 0 : Math.min(referralCount + 1, 6);
+                  const dayLimit = referralCount === 0 ? 0 : Math.min(referralCount + 1, maxPerDay);
                   return (
                     <>
                       <span className={`text-lg font-black leading-none ${dayLimit === 0 ? 'text-destructive' : 'text-orange-500'}`}>
@@ -416,7 +419,7 @@ export default function MMarketPage() {
               {/* 已抢 / 剩余 */}
               <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
                 {(() => {
-                  const dayLimit = referralCount === 0 ? 0 : Math.min(referralCount + 1, 6);
+                  const dayLimit = referralCount === 0 ? 0 : Math.min(referralCount + 1, maxPerDay);
                   const used = Math.min(todayOrderCount ?? 0, dayLimit);
                   const left = Math.max(dayLimit - used, 0);
                   return (
@@ -432,13 +435,13 @@ export default function MMarketPage() {
             </div>
             {/* 底部提示行 */}
             {(() => {
-              const dayLimit = referralCount === 0 ? 0 : Math.min(referralCount + 1, 6);
+              const dayLimit = referralCount === 0 ? 0 : Math.min(referralCount + 1, maxPerDay);
               if (dayLimit === 0) {
                 return (
                   <div className="bg-destructive/5 border-t border-destructive/20 px-3 py-1.5 flex items-center gap-1.5">
                     <Lock size={11} className="text-destructive shrink-0" />
                     <span className="text-[10px] text-destructive">
-                      需至少推荐 1 位好友并完成销售才可参与主场进货
+                      需至少推荐 1 位好友并成为正式商家才可参与主场进货
                     </span>
                   </div>
                 );
@@ -450,7 +453,7 @@ export default function MMarketPage() {
                   <div className="bg-muted/60 border-t border-border px-3 py-1.5 flex items-center gap-1.5">
                     <CheckCircle2 size={11} className="text-green-600 shrink-0" />
                     <span className="text-[10px] text-muted-foreground">
-                      今日份额已用完，推荐更多好友可提升上限（最多6单）
+                      今日份额已用完，推荐更多好友可提升上限（最多{maxPerDay}单）
                     </span>
                   </div>
                 );
@@ -459,7 +462,7 @@ export default function MMarketPage() {
                 <div className="bg-orange-500/5 border-t border-orange-200/50 px-3 py-1.5 flex items-center gap-1.5">
                   <Zap size={11} className="text-orange-500 shrink-0" />
                   <span className="text-[10px] text-orange-600">
-                    今日还可抢 {left} 单 · {referralCount} 人已完成销售 → 上限 {dayLimit} 单
+                    今日还可抢 {left} 单 · {referralCount} 人已成为正式商家 → 上限 {dayLimit} 单
                   </span>
                 </div>
               );

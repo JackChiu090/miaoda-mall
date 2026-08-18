@@ -25,10 +25,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-// ── 配置键名（进货时间完全由 rush_time_slots 时段配置决定，此处仅保留非时间类参数）──
+// ── 配置键名（进货时间完全由 rush_time_slots 时段配置决定，此处仅保留非时间类参数；
+//    主场进货封顶单数 rush_max_per_day 已移至「系统设置 → 主场进货规则」统一配置）──
 const TIME_KEYS = [
   'market_open_hour', 'market_open_minute',
-  'rush_max_per_day',
   'resell_cutoff_hour', 'resell_cutoff_minute',
 ];
 
@@ -93,7 +93,6 @@ export default function FlashBuyManagePage() {
   // 配置值
   const [cfg, setCfg] = useState<Record<string, string>>({
     market_open_hour: '9', market_open_minute: '0',
-    rush_max_per_day: '3',
     resell_cutoff_hour: '14', resell_cutoff_minute: '20',
   });
   const [saving, setSaving] = useState(false);
@@ -609,7 +608,7 @@ export default function FlashBuyManagePage() {
                       >🔥 正式进货</Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      早场：体验商家可选抢2单 / 正式商家系统自动2单；正式进货：按推荐人数阶梯（1人→1单，最多3单）
+                      早场：体验商家可选 1 单 / 正式商家系统自动 2 单；正式进货：按推荐人数（已成为正式商家）阶梯，直推 1 人→2 单…5 人→6 单封顶
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">

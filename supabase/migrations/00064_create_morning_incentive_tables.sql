@@ -11,7 +11,10 @@ CREATE TABLE public.morning_incentive_config (
 ALTER TABLE public.morning_incentive_config ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "config_select_all" ON public.morning_incentive_config FOR SELECT USING (true);
 CREATE POLICY "config_update_admin" ON public.morning_incentive_config FOR UPDATE TO authenticated USING (
-  EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND is_super_admin = true)
+  public.is_super_admin()
+);
+CREATE POLICY "config_insert_admin" ON public.morning_incentive_config FOR INSERT TO authenticated WITH CHECK (
+  public.is_super_admin()
 );
 
 -- 早市激励奖励发放记录表

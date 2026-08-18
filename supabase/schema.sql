@@ -6344,9 +6344,27 @@ BEGIN
       AND c.relname = 'morning_incentive_config'
   ) THEN
     EXECUTE $pg_schema_sql$
-CREATE POLICY "config_update_admin" ON "public"."morning_incentive_config" FOR UPDATE TO "authenticated" USING ((EXISTS ( SELECT 1
-   FROM "public"."users"
-  WHERE (("users"."id" = "auth"."uid"()) AND ("users"."is_super_admin" = true)))));
+CREATE POLICY "config_update_admin" ON "public"."morning_incentive_config" FOR UPDATE TO "authenticated" USING ("public"."is_super_admin"());
+$pg_schema_sql$;
+  END IF;
+END
+$pg_schema_restore$;
+
+-- Name: morning_incentive_config config_insert_admin; Type: POLICY; Schema: public; Owner: -
+--
+
+DO $pg_schema_restore$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy pol
+    JOIN pg_class c ON c.oid = pol.polrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE pol.polname = 'config_insert_admin'
+      AND n.nspname = 'public'
+      AND c.relname = 'morning_incentive_config'
+  ) THEN
+    EXECUTE $pg_schema_sql$
+CREATE POLICY "config_insert_admin" ON "public"."morning_incentive_config" FOR INSERT TO "authenticated" WITH CHECK ("public"."is_super_admin"());
 $pg_schema_sql$;
   END IF;
 END

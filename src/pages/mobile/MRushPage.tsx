@@ -353,7 +353,7 @@ function RushRuleBanner({
     }
   } else {
     title = '🔥 主场进货';
-    desc = `按推荐人数与被推荐人完成订单销售决定可进货数：推荐1人→2单 / 2人→3单 / 3人→4单 / 4人→5单 / 5人→6单（封顶）。当前已完成销售的被推荐人 ${rc} 人`;
+    desc = `按推荐人数（已成为正式商家）决定可进货数：推荐1人→2单 / 2人→3单 / 3人→4单 / 4人→5单 / 5人→6单（封顶）。当前已成为正式商家的被推荐人 ${rc} 人`;
     icon = <Flame size={15} className="text-orange-500 shrink-0" />;
     accent = 'border-orange-300/60 bg-orange-500/10';
   }
@@ -401,6 +401,8 @@ export default function MRushPage() {
   const [todayActivities, setTodayActivities] = useState<RushActivity[]>([]);
   // 早市激励配置：正式/体验商家早市首单限购数量（来自后台配置）
   const [incentiveCfg, setIncentiveCfg] = useState({ regular: 2, trial: 1 });
+  // 主场进货每日封顶单数（来自系统设置 rush_max_per_day，默认 6）
+  const [maxPerDay, setMaxPerDay] = useState(6);
 
   /**
    * 解析当前生效时段：自定义活动优先 > 默认时段
@@ -458,15 +460,15 @@ export default function MRushPage() {
         .eq('activity_date', new Date(getServerNow() + 8 * 3600000).toISOString().slice(0, 10))
         .order('priority', { ascending: true }),
     ]);
-    // 主场阶梯依据：被推荐人中"已完成订单销售"（作为买家有已完成订单）的人数
+    // 主场阶梯依据：被推荐人中"已成为正式商家"（merchant_type=regular）的人数
     const referredIds = (referredUsers ?? []).map((u: { id: string }) => u.id);
     let completedReferral = 0;
     if (referredIds.length > 0) {
-      const { data: completedBuyers } = await supabase.from('orders')
-        .select('buyer_id')
-        .in('buyer_id', referredIds)
-        .eq('status', 'confirmed');
-      completedReferral = new Set((completedBuyers ?? []).map((o: { buyer_id: string }) => o.buyer_id)).size;
+      const { data: regularMerchants } = await supabase.from('users')
+        .select('id')
+        .in('id', referredIds)
+        .eq('merchant_type', 'regular');
+      completedReferral = (regularMerchants ?? []).length;
     }
     setReferralCount(completedReferral);
     setTodayOrderCount(todayCnt ?? 0);
@@ -485,6 +487,11 @@ export default function MRushPage() {
         trial: cfg.trial_first_order_limit ?? 1,
       });
     }
+    // 读取主场进货每日封顶单数（参数可调）
+    const { data: maxRow } = await supabase.from('system_settings')
+      .select('value').eq('key', 'rush_max_per_day').maybeSingle();
+    const maxVal = parseInt(maxRow?.value ?? '6') || 6;
+    setMaxPerDay(maxVal);
   }, [mobileUser]);
 
   const load = useCallback(async () => {
@@ -586,15 +593,15 @@ export default function MRushPage() {
   /**
    * 根据商家身份与场次类型计算个人可进货数（与 getRushPhaseAndLimit 保持一致）
    *   - 早场(early)：体验商家 1 单；正式商家 2 单（系统自动）
-   *   - 正式进货(formal)：仅正式商家参与，推荐N人且被推荐人完成订单销售→N+1单，最多6单封顶
-   *     rc 为"已完成订单销售的被推荐人数"
+   *   - 正式进货(formal)：仅正式商家参与，推荐N人（已成为正式商家）→N+1单，最多 maxPerDay 单封顶
+   *     rc 为"已成为正式商家的被推荐人数"
    */
   const computeDayLimit = (sessionType: 'early' | 'formal', rc: number) => {
     if (sessionType === 'early') {
       return mobileUser?.merchant_type === 'regular' ? incentiveCfg.regular : incentiveCfg.trial;
     }
-    // rc=0：未推荐或推荐人无完成销售 → 主场0单；rc≥1：rc+1单，封顶6单
-    return rc === 0 ? 0 : Math.min(rc + 1, 6);
+    // rc=0：未推荐或推荐人非正式商家 → 主场0单；rc≥1：rc+1单，封顶 maxPerDay 单
+    return rc === 0 ? 0 : Math.min(rc + 1, maxPerDay);
   };
 
   /**
@@ -627,15 +634,14 @@ export default function MRushPage() {
         .eq('referrer_id', userId),
     ]);
     const referredIds = (referredUsers ?? []).map((u: { id: string }) => u.id);
-    // 主场阶梯依据：被推荐人中"已完成订单销售"（作为买家有已完成订单）的人数
+    // 主场阶梯依据：被推荐人中"已成为正式商家"（merchant_type=regular）的人数
     let rc = 0;
     if (referredIds.length > 0) {
-      const { data: completedBuyers } = await supabase.from('orders')
-        .select('buyer_id')
-        .in('buyer_id', referredIds)
-        .eq('status', 'confirmed');
-      const completedSet = new Set((completedBuyers ?? []).map((o: { buyer_id: string }) => o.buyer_id));
-      rc = completedSet.size;
+      const { data: regularMerchants } = await supabase.from('users')
+        .select('id')
+        .in('id', referredIds)
+        .eq('merchant_type', 'regular');
+      rc = (regularMerchants ?? []).length;
     }
     const tc = todayCnt ?? 0;
 
@@ -696,7 +702,7 @@ export default function MRushPage() {
         return;
       }
       if (dayLimit <= 0) {
-        toast.error('当前进货额度为 0，请先推荐好友并完成订单销售后再来进货');
+        toast.error('当前进货额度为 0，请先推荐好友并成为正式商家后再来进货');
         return;
       }
       if (todayCnt >= dayLimit) {

@@ -5,8 +5,8 @@
  *  2. 按系统分润费率分配奖励：
  *     - 商家分红（merchant_bonus_rate）→ 买方 bonus 账户
  *     - 老板分红（boss_bonus_rate）    → 固定老板用户 bonus 账户
- *     - 代金券储备（voucher_reserve_rate 0.1%）→ 买方 points 账户 + 全局 voucher_pool 累计
- *     - 推广奖金（direct_referral_rate 0.2%）→ 买方直接推荐人 promotion 账户
+ *     - 代金券储备（voucher_reserve_rate 0.3%）→ 买方 points 账户 + 全局 voucher_pool 累计
+ *     - 直接奖励（direct_referral_rate 0.2%）→ 买方直接推荐人 promotion 账户
  *  3. 推荐奖励（referral_ancestor_rate 订单金额 × 0.2%）：
  *     向上遍历推荐链，找到「当天中午12点前完成进货订单」的最近推荐人作为奖励获得者；
  *     若整条链都未在截止前完成，则奖励给最上级推荐人（链顶兜底）
@@ -108,22 +108,27 @@ export async function settleSellerEarnings(params: SettleParams): Promise<Settle
   }).eq('id', orderId);
 
   // ── 3. 读取分润费率配置 ──
-  const RATE_KEYS = ['merchant_bonus_rate', 'boss_bonus_rate', 'voucher_reserve_rate'];
+  const RATE_KEYS = ['merchant_bonus_rate', 'boss_bonus_rate', 'voucher_reserve_rate', 'direct_referral_rate'];
   const { data: rateRows } = await supabase.from('system_settings').select('key,value').in('key', RATE_KEYS);
   const rateMap: Record<string, number> = {};
   (rateRows ?? []).forEach(r => { rateMap[r.key] = parseFloat(r.value) || 0; });
   const merchantRate = rateMap['merchant_bonus_rate']  ?? 0.01;
-  const bossRate     = rateMap['boss_bonus_rate']      ?? 0.017;
-  const voucherRate  = rateMap['voucher_reserve_rate'] ?? 0.001;
-  // 注意：direct_referral_rate（旧推广奖金）已废弃，推荐奖励统一由 Step 7 settleReferralReward 处理
+  const bossRate     = rateMap['boss_bonus_rate']      ?? 0.015;
+  const voucherRate  = rateMap['voucher_reserve_rate'] ?? 0.003;
+  const directRate   = rateMap['direct_referral_rate'] ?? 0.002;
 
   // ── 4. 老板分红固定账户 ──
   const BOSS_USER_ID = 'a256890e-d87a-4b90-8158-301007001c23'; // 13924151349
 
-  // ── 5. 并行分发三笔奖励（已移除旧推广奖金，避免与递推推荐奖励重复发放） ──
+  // ── 5. 并行分发奖励（商家分红 / 老板分红 / 代金券储备 / 直接奖励） ──
   const merchantAmt = Number((orderAmount * merchantRate).toFixed(2));
   const bossAmt     = Number((orderAmount * bossRate).toFixed(2));
   const voucherAmt  = Number((orderAmount * voucherRate).toFixed(2));
+  const directAmt   = Number((orderAmount * directRate).toFixed(2));
+
+  // 查询买方直接推荐人（直接奖励发放对象）
+  const { data: buyerRow } = await supabase.from('users').select('referrer_id').eq('id', buyerId).maybeSingle();
+  const directReferrerId: string | null = buyerRow?.referrer_id ?? null;
 
   await Promise.all([
     // 商家分红 → 买方 bonus
@@ -132,7 +137,14 @@ export async function settleSellerEarnings(params: SettleParams): Promise<Settle
     // 老板分红 → 固定老板账户 bonus
     addUserAccount(BOSS_USER_ID, 'bonus', bossAmt, orderId,
       `老板分红（${(bossRate * 100).toFixed(1)}%）`),
-    // 代金券储备 0.1% → 买方 points 账户（累计到门槛可兑换）+ 全局资金池
+    // 直接奖励 → 买方直接推荐人 promotion 账户
+    (async () => {
+      if (directReferrerId && directAmt > 0) {
+        await addUserAccount(directReferrerId, 'promotion', directAmt, orderId,
+          `直接奖励（${(directRate * 100).toFixed(1)}%）`);
+      }
+    })(),
+    // 代金券储备 0.3% → 买方 points 账户（累计到门槛可兑换）+ 全局资金池
     (async () => {
       await addUserAccount(buyerId, 'points', voucherAmt, orderId,
         `代金券储备（${(voucherRate * 100).toFixed(1)}%）`);

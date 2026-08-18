@@ -38,9 +38,9 @@ const RULE_CONFIG = [
 ];
 
 // 进货额度规则（时间完全由「进货管理-时段参数配置」模块决定，此处仅保留额度参数）
+// 主场进货阶梯：直推 N 人（已成为正式商家）→ N+1 单，封顶 rush_max_per_day 单
 const RUSH_MAIN_CONFIG = [
-  { key: 'rush_referral_per_unit', label: '每单所需直推人数',     desc: '直推N人可抢1单，推荐2人抢2单，推荐3人抢3单（默认1人/单）',    unit: '人' },
-  { key: 'rush_max_per_day',       label: '每日进货封顶单数',     desc: '无论推荐多少人，单日可进货数上限（默认3单）',                  unit: '单' },
+  { key: 'rush_max_per_day',       label: '主场进货封顶单数',     desc: '直推1人(正式商家)→2单、2人→3单…5人→6单，此为每日封顶单数（默认6单）', unit: '单' },
 ];
 
 const SETTINGS_CONFIG = [
@@ -197,8 +197,8 @@ export default function SettingsPage() {
                   进货时间：由「进货管理 → 时段参数配置」模块统一设定，系统严格按配置时段执行
                 </p>
                 <p>
-                  阶梯上限：直推 1 人→1 单 / 直推 2 人→2 单 / 直推 3 人→3 单，每日最多{' '}
-                  <span className="font-mono text-foreground">{values['rush_max_per_day'] ?? '3'}</span> 单封顶
+                  阶梯上限（主场进货）：正式商家直推 N 人（已成为正式商家）→ N+1 单：直推 1 人→2 单 / 2 人→3 单 / 3 人→4 单 / 4 人→5 单 / 5 人→6 单，每日最多{' '}
+                  <span className="font-mono text-foreground">{values['rush_max_per_day'] ?? '6'}</span> 单封顶
                 </p>
               </div>
             </div>

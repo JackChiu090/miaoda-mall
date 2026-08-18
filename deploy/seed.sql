@@ -23,10 +23,10 @@ ON CONFLICT (config_key) DO NOTHING;
 
 -- 系统设置
 INSERT INTO "public"."system_settings" ("key", "value", "description") VALUES
-  ('resell_premium_rate','0.03','转拍溢价比例'),('direct_referral_rate','0.02','直推奖励比例'),
+  ('resell_premium_rate','0.03','转拍溢价比例'),('direct_referral_rate','0.002','直推奖励比例'),
   ('eat_soil_rate','0.05','吃土扣除比例'),('new_user_eat_soil_days','5','新用户吃土宽限天数'),
-  ('merchant_bonus_rate','0.01','商家分红比例'),('boss_bonus_rate','0.017','老板分红比例'),
-  ('voucher_reserve_rate','0.001','代金券储备比例'),('voucher_pool_redeem_threshold','3980','代金券兑换阈值'),
+  ('merchant_bonus_rate','0.01','商家分红比例'),('boss_bonus_rate','0.015','老板分红比例'),
+  ('voucher_reserve_rate','0.003','代金券储备比例'),('voucher_pool_redeem_threshold','3980','代金券兑换阈值'),
   ('voucher_min_direct_referrals','3','兑换最少直推人数'),('rush_display_hour','9','进货展示小时'),
   ('market_open_hour','9','进货市场开市小时'),('market_open_minute','0','进货市场开市分钟'),
   ('resell_cutoff_hour','14','转拍截止小时'),('resell_cutoff_minute','20','转拍截止分钟'),

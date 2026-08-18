@@ -90,23 +90,26 @@ export default function MorningIncentivePage() {
   useEffect(() => { loadRecords(page); }, [loadRecords, page]);
 
   const handleSave = async () => {
-    if (!config) return;
     if (form.regular_first_order_limit < 1) { toast.error('正式商家限购数量需大于等于1'); return; }
     if (form.trial_first_order_limit < 1) { toast.error('体验商家限购数量需大于等于1'); return; }
     if (form.deadline_hour < 0 || form.deadline_hour > 23) { toast.error('完成时间小时需在 0-23 之间'); return; }
     if (form.deadline_minute < 0 || form.deadline_minute > 59) { toast.error('完成时间分钟需在 0-59 之间'); return; }
     if (form.reward_rate <= 0 || form.reward_rate > 1) { toast.error('奖励比例需在 0-1 之间（如 0.002 表示 0.2%）'); return; }
     setSaving(true);
-    const { error } = await supabase.from('morning_incentive_config').update({
+    const payload = {
       regular_first_order_limit: form.regular_first_order_limit,
       trial_first_order_limit: form.trial_first_order_limit,
       deadline_hour: form.deadline_hour,
       deadline_minute: form.deadline_minute,
       reward_rate: form.reward_rate,
       updated_at: new Date().toISOString(),
-    }).eq('id', config.id);
+    };
+    // 无配置行时自动创建（首次配置），否则更新现有行
+    const { error } = config
+      ? await supabase.from('morning_incentive_config').update(payload).eq('id', config.id)
+      : await supabase.from('morning_incentive_config').insert(payload).select('id').single();
     setSaving(false);
-    if (error) { toast.error('保存失败，请重试'); return; }
+    if (error) { toast.error('保存失败：' + error.message); return; }
     toast.success('激励参数已保存');
     loadConfig();
   };

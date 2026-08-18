@@ -112,26 +112,19 @@ export default function OrdersPage2() {
       couponCount[c.used_order_id] = (couponCount[c.used_order_id] ?? 0) + 1;
     });
 
-    // 批量查每笔订单的直接奖励：从 referral_rewards 取（语义准确，不受客户端 RLS 写入限制影响，
-    // 确保老板作为推荐奖励接收人时也能正确显示）
+    // 批量查每笔订单的直接奖励：从 account_transactions 取（promotion 账户「直接奖励」入账，0.2%）
     const { data: rewardData } = await supabase
-      .from('referral_rewards')
-      .select('order_id, amount, recipient_id')
-      .in('order_id', orderIds)
-      .eq('status', 'settled');
-    // 补充加载推荐奖励接收人（可能不在 buyer/seller 范围内，如老板）
-    const rewardRecipientIds = [...new Set((rewardData ?? []).map((r: any) => r.recipient_id).filter(Boolean))];
-    const missingIds = rewardRecipientIds.filter(id => !userMap[id]);
-    if (missingIds.length > 0) {
-      const { data: recipientData } = await supabase
-        .from('users').select('id, real_name, nickname, phone').in('id', missingIds);
-      (recipientData ?? []).forEach((u: any) => { userMap[u.id] = u; });
-    }
+      .from('account_transactions')
+      .select('related_order_id, amount')
+      .eq('account_type', 'promotion')
+      .eq('type', 'in')
+      .ilike('description', '直接奖励%')
+      .in('related_order_id', orderIds);
     const rewardMap: Record<string, { amount: number; recipient_name: string }> = {};
     (rewardData ?? []).forEach((r: any) => {
-      if (r.order_id) rewardMap[r.order_id] = {
+      if (r.related_order_id) rewardMap[r.related_order_id] = {
         amount: Number(r.amount ?? 0),
-        recipient_name: displayName(userMap[r.recipient_id]),
+        recipient_name: '-',
       };
     });
 
@@ -183,8 +176,9 @@ export default function OrdersPage2() {
       const [{ data: userData }, { data: couponData }, { data: rewardData }] = await Promise.all([
         supabase.from('users').select('id, real_name, nickname, phone').in('id', userIds),
         supabase.from('user_coupons').select('used_order_id').in('used_order_id', ids).eq('status', 'used'),
-        supabase.from('referral_rewards').select('order_id, amount, recipient_id')
-          .in('order_id', ids).eq('status', 'settled'),
+        supabase.from('account_transactions').select('related_order_id, amount')
+          .eq('account_type', 'promotion').eq('type', 'in')
+          .ilike('description', '直接奖励%').in('related_order_id', ids),
       ]);
       const userMap: Record<string, any> = {};
       (userData ?? []).forEach((u: any) => { userMap[u.id] = u; });
@@ -192,19 +186,11 @@ export default function OrdersPage2() {
       (couponData ?? []).forEach((c: any) => {
         couponCount[c.used_order_id] = (couponCount[c.used_order_id] ?? 0) + 1;
       });
-      // 补充加载推荐奖励接收人（可能不在 buyer/seller 中，如老板）
-      const recipientIds = [...new Set((rewardData ?? []).map((r: any) => r.recipient_id).filter(Boolean))];
-      const missingIds = recipientIds.filter(id => !userMap[id]);
-      if (missingIds.length > 0) {
-        const { data: recipientData } = await supabase
-          .from('users').select('id, real_name, nickname, phone').in('id', missingIds);
-        (recipientData ?? []).forEach((u: any) => { userMap[u.id] = u; });
-      }
       const rewardMap: Record<string, { amount: number; recipient_name: string }> = {};
       (rewardData ?? []).forEach((r: any) => {
-        if (r.order_id) rewardMap[r.order_id] = {
+        if (r.related_order_id) rewardMap[r.related_order_id] = {
           amount: Number(r.amount ?? 0),
-          recipient_name: displayName(userMap[r.recipient_id]),
+          recipient_name: '-',
         };
       });
 
@@ -378,11 +364,11 @@ export default function OrdersPage2() {
                   </td>
                   {/* 下单时间 */}
                   <td className="px-3 py-2.5 text-xs whitespace-nowrap text-muted-foreground">
-                    {new Date(r.created_at).toLocaleDateString('zh-CN')}
+                    {new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}
                   </td>
                   {/* 完成时间 */}
                   <td className="px-3 py-2.5 text-xs whitespace-nowrap text-muted-foreground">
-                    {r.completed_at ? new Date(r.completed_at).toLocaleDateString('zh-CN') : '-'}
+                    {r.completed_at ? new Date(r.completed_at).toLocaleString('zh-CN', { hour12: false }) : '-'}
                   </td>
                 </tr>
               );

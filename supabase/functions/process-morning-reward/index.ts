@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     // 读取激励配置
     const { data: cfg } = await db
       .from('morning_incentive_config')
-      .select('first_order_limit, deadline_hour, deadline_minute, reward_rate')
+      .select('deadline_hour, deadline_minute, reward_rate')
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();

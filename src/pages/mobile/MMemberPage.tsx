@@ -308,7 +308,7 @@ export default function MMemberPage() {
                   <p className="text-2xl font-bold text-yellow-700">{acc('points').toFixed(2)}</p>
                 )}
                 <p className="text-xs text-yellow-600 mt-0.5">元 代金券储备</p>
-                <p className="text-[10px] text-yellow-500 mt-0.5">订单0.1%自动存入</p>
+                <p className="text-[10px] text-yellow-500 mt-0.5">订单0.3%自动存入</p>
               </div>
               <div className="absolute bottom-2 right-2 w-8 h-8 rounded-lg bg-yellow-300/60 flex items-center justify-center">
                 <Coins size={16} className="text-yellow-600" />

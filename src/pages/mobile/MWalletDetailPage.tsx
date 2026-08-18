@@ -194,7 +194,7 @@ export default function MWalletDetailPage() {
               <p className="text-xs font-semibold text-amber-700">代金券储备说明</p>
             </div>
             <ul className="text-xs text-amber-700 space-y-1 leading-relaxed">
-              <li>• 每笔完成订单按<span className="font-semibold">交易额 0.1%</span>自动存入，无需手动操作</li>
+              <li>• 每笔完成订单按<span className="font-semibold">交易额 0.3%</span>自动存入，无需手动操作</li>
               <li>• 累积至 <span className="font-semibold">¥3,980</span> 且直推满 3 人，可申请兑换实物代金券</li>
               <li>• 兑换后代金券存入"优惠券账户"，可在购物时抵扣使用</li>
               <li>• 储备积分长期有效，无过期时间</li>
