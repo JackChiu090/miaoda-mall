@@ -13,7 +13,7 @@ interface RewardRecord {
   id: string;
   order_id: string;
   buyer_id: string;
-  reward_amount: number;
+  amount: number;
   recipient_level: number;
   reward_rate: number;
   created_at: string;
@@ -36,9 +36,10 @@ export default function MMorningRewardPage() {
     const from = p * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const { data, count } = await supabase
-      .from('morning_reward_records')
-      .select('id, order_id, buyer_id, reward_amount, recipient_level, reward_rate, created_at, buyer:users!morning_reward_records_buyer_id_fkey(phone,nickname,real_name)', { count: 'exact' })
+      .from('referral_rewards')
+      .select('id, order_id, buyer_id, amount, recipient_level, reward_rate, created_at, buyer:users!referral_rewards_buyer_id_fkey(phone,nickname,real_name)', { count: 'exact' })
       .eq('recipient_id', mobileUser.id)
+      .eq('status', 'settled')
       .order('created_at', { ascending: false })
       .range(from, to);
     setRecords((data as unknown as RewardRecord[]) ?? []);
@@ -49,7 +50,7 @@ export default function MMorningRewardPage() {
   useEffect(() => { load(page); }, [load, page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const totalAmount = records.reduce((s, r) => s + Number(r.reward_amount), 0);
+  const totalAmount = records.reduce((s, r) => s + Number(r.amount), 0);
   const displayName = (u?: { phone: string; nickname?: string; real_name?: string } | null) =>
     u ? (u.real_name || u.nickname || u.phone) : '—';
 
@@ -93,7 +94,7 @@ export default function MMorningRewardPage() {
                     · 比例 {(Number(r.reward_rate) * 100).toFixed(2)}%
                   </p>
                 </div>
-                <span className="text-primary font-bold text-sm shrink-0">+¥{Number(r.reward_amount).toFixed(2)}</span>
+                <span className="text-primary font-bold text-sm shrink-0">+¥{Number(r.amount).toFixed(2)}</span>
               </div>
             ))}
           </div>

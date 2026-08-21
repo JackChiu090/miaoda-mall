@@ -119,17 +119,12 @@ export default function MSellWarehousePage() {
       operator_type: 'seller', operator_id: mobileUser!.id, remark: '卖方确认收款',
     });
 
-    // 3. 结算卖方收益 + 分润分配
+    // 3. 结算卖方收益 + 分润分配（含直接奖励：推荐链路10点前递推，统一在此发放）
     const { netAmount, serviceFee } = await settleSellerEarnings({
       orderId: order.id, sellerId: mobileUser!.id,
       buyerId: order.buyer_id ?? '',
       orderAmount: order.amount,
     });
-
-    // 4. 早市激励奖励分配（订单确认收款后，按推荐链路逐级向上）
-    await supabase.functions.invoke('process-morning-reward', {
-      body: { order_id: order.id },
-    }).catch(() => {/* 奖励分配失败不影响确认收款 */});
 
     setConfirming(null);
     setPendingConfirm(null);

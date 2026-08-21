@@ -970,6 +970,8 @@ CREATE TABLE IF NOT EXISTS "public"."referral_rewards" (
     "recipient_id" "uuid" NOT NULL,
     "skipped_ids" "uuid"[] DEFAULT '{}'::"uuid"[] NOT NULL,
     "amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "recipient_level" integer,
+    "reward_rate" numeric(8,4),
     "status" "text" DEFAULT 'settled'::"text" NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
 );

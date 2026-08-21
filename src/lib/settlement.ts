@@ -211,7 +211,7 @@ async function settleReferralReward({
 
     topReferrerId = referrerId; // 持续更新为最上级推荐人
 
-    // 检查该推荐人是否在「当天中午12:00前」完成过进货订单（confirmed + is_rush）
+    // 检查该推荐人是否在「当天10:00前」完成过进货订单（confirmed + is_rush）
     const { count: rushCnt } = await supabase
       .from('orders')
       .select('id', { count: 'exact', head: true })
@@ -221,20 +221,22 @@ async function settleReferralReward({
       .lt('created_at', deadlineUtc);
 
     if ((rushCnt ?? 0) > 0) {
-      // 找到达标推荐人，发放奖励
+      // 找到达标推荐人，发放奖励（记录上级层级与奖励比例）
       await addUserAccount(
         referrerId, 'promotion', rewardAmt, orderId,
         `直接奖励（当天10点前完成进货）`,
       );
       await supabase.from('referral_rewards').insert({
-        order_id:     orderId,
-        buyer_id:     buyerId,
-        recipient_id: referrerId,
-        skipped_ids:  skippedIds,
-        amount:       rewardAmt,
-        status:       'settled',
+        order_id:        orderId,
+        buyer_id:        buyerId,
+        recipient_id:    referrerId,
+        skipped_ids:     skippedIds,
+        amount:          rewardAmt,
+        recipient_level: i + 1,
+        reward_rate:     ancestorRate,
+        status:          'settled',
       });
-      console.log(`[settlement] referral_reward: buyer=${buyerId} → recipient=${referrerId}(达标), skipped=${skippedIds.length}, amount=${rewardAmt}`);
+      console.log(`[settlement] referral_reward: buyer=${buyerId} → recipient=${referrerId}(达标, 第${i + 1}级), skipped=${skippedIds.length}, amount=${rewardAmt}`);
       return;
     }
 
@@ -259,14 +261,16 @@ async function settleReferralReward({
       `直接奖励（链顶兜底）`,
     );
     await supabase.from('referral_rewards').insert({
-      order_id:     orderId,
-      buyer_id:     buyerId,
-      recipient_id: topReferrerId,
-      skipped_ids:  skippedIds,
-      amount:       rewardAmt,
-      status:       'settled',
+      order_id:        orderId,
+      buyer_id:        buyerId,
+      recipient_id:    topReferrerId,
+      skipped_ids:     skippedIds,
+      amount:          rewardAmt,
+      recipient_level: skippedIds.length + 1,
+      reward_rate:     ancestorRate,
+      status:          'settled',
     });
-    console.log(`[settlement] referral_reward: buyer=${buyerId} → top=${topReferrerId}(链顶兜底), skipped=${skippedIds.length}, amount=${rewardAmt}`);
+    console.log(`[settlement] referral_reward: buyer=${buyerId} → top=${topReferrerId}(链顶兜底, 第${skippedIds.length + 1}级), skipped=${skippedIds.length}, amount=${rewardAmt}`);
   } else {
     console.log(`[settlement] referral_reward: no referrer for buyer=${buyerId}`);
   }

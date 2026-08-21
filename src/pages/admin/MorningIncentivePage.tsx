@@ -29,7 +29,7 @@ interface RewardRecord {
   id: string;
   order_id: string;
   buyer_id: string;
-  reward_amount: number;
+  amount: number;
   recipient_id: string;
   recipient_level: number;
   reward_rate: number;
@@ -77,8 +77,9 @@ export default function MorningIncentivePage() {
     const from = p * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     const { data, count } = await supabase
-      .from('morning_reward_records')
-      .select('id, order_id, buyer_id, reward_amount, recipient_id, recipient_level, reward_rate, created_at, buyer:users!morning_reward_records_buyer_id_fkey(phone,nickname,real_name), recipient:users!morning_reward_records_recipient_id_fkey(phone,nickname,real_name)', { count: 'exact' })
+      .from('referral_rewards')
+      .select('id, order_id, buyer_id, amount, recipient_id, recipient_level, reward_rate, created_at, buyer:users!referral_rewards_buyer_id_fkey(phone,nickname,real_name), recipient:users!referral_rewards_recipient_id_fkey(phone,nickname,real_name)', { count: 'exact' })
+      .eq('status', 'settled')
       .order('created_at', { ascending: false })
       .range(from, to);
     setRecords((data as unknown as RewardRecord[]) ?? []);
@@ -92,16 +93,10 @@ export default function MorningIncentivePage() {
   const handleSave = async () => {
     if (form.regular_first_order_limit < 1) { toast.error('正式商家限购数量需大于等于1'); return; }
     if (form.trial_first_order_limit < 1) { toast.error('体验商家限购数量需大于等于1'); return; }
-    if (form.deadline_hour < 0 || form.deadline_hour > 23) { toast.error('完成时间小时需在 0-23 之间'); return; }
-    if (form.deadline_minute < 0 || form.deadline_minute > 59) { toast.error('完成时间分钟需在 0-59 之间'); return; }
-    if (form.reward_rate <= 0 || form.reward_rate > 1) { toast.error('奖励比例需在 0-1 之间（如 0.002 表示 0.2%）'); return; }
     setSaving(true);
     const payload = {
       regular_first_order_limit: form.regular_first_order_limit,
       trial_first_order_limit: form.trial_first_order_limit,
-      deadline_hour: form.deadline_hour,
-      deadline_minute: form.deadline_minute,
-      reward_rate: form.reward_rate,
       updated_at: new Date().toISOString(),
     };
     // 无配置行时自动创建（首次配置），否则更新现有行
@@ -147,7 +142,7 @@ export default function MorningIncentivePage() {
                           value={form.regular_first_order_limit}
                           onChange={e => setForm(f => ({ ...f, regular_first_order_limit: Number(e.target.value) }))}
                         />
-                        <p className="text-xs text-muted-foreground">正式商家在早市完成首单购买的限购数量</p>
+                        <p className="text-xs text-muted-foreground">正式商家在早场完成首单购买的限购数量</p>
                       </div>
                       <div className="space-y-2">
                         <Label>体验商家限购数量（单）</Label>
@@ -156,39 +151,14 @@ export default function MorningIncentivePage() {
                           value={form.trial_first_order_limit}
                           onChange={e => setForm(f => ({ ...f, trial_first_order_limit: Number(e.target.value) }))}
                         />
-                        <p className="text-xs text-muted-foreground">体验商家在早市完成首单购买的限购数量</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>奖励比例</Label>
-                        <Input
-                          type="number" step="0.0001" min={0} max={1}
-                          value={form.reward_rate}
-                          onChange={e => setForm(f => ({ ...f, reward_rate: Number(e.target.value) }))}
-                        />
-                        <p className="text-xs text-muted-foreground">当前约 {(form.reward_rate * 100).toFixed(2)}%（下级订单金额的该比例作为奖励）</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>规定完成时间 - 小时</Label>
-                        <Input
-                          type="number" min={0} max={23}
-                          value={form.deadline_hour}
-                          onChange={e => setForm(f => ({ ...f, deadline_hour: Number(e.target.value) }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>规定完成时间 - 分钟</Label>
-                        <Input
-                          type="number" min={0} max={59}
-                          value={form.deadline_minute}
-                          onChange={e => setForm(f => ({ ...f, deadline_minute: Number(e.target.value) }))}
-                        />
+                        <p className="text-xs text-muted-foreground">体验商家在早场完成首单购买的限购数量</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2 bg-muted/60 rounded-lg p-3">
                       <Info size={14} className="text-primary shrink-0 mt-0.5" />
                       <p className="text-xs text-muted-foreground">
-                        规定完成时间默认为周一至周五 {String(form.deadline_hour).padStart(2, '0')}:{String(form.deadline_minute).padStart(2, '0')} 前。
-                        下级商家订单确认收款后，系统沿推荐链路逐级向上检查，奖励分配给链路中首个在该时间前完成订单交易的上级商家。
+                        推荐奖励（0.2%）已统一在「系统设置 → 分润费率 → 直接奖励」中发放，规则为推荐链路逐级向上、
+                        找到当天 10 点前完成订单的最近推荐人发放；奖励比例与截止时间以「直接奖励」费率为准，此处不再单独配置。
                       </p>
                     </div>
                     <Button onClick={handleSave} disabled={saving} className="gap-1.5">
@@ -238,7 +208,7 @@ export default function MorningIncentivePage() {
                               <Badge variant="outline" className="text-[10px]">第{r.recipient_level}级上级</Badge>
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-sm">{(Number(r.reward_rate) * 100).toFixed(2)}%</TableCell>
-                            <TableCell className="whitespace-nowrap text-right font-semibold text-primary">¥{Number(r.reward_amount).toFixed(2)}</TableCell>
+                            <TableCell className="whitespace-nowrap text-right font-semibold text-primary">¥{Number(r.amount).toFixed(2)}</TableCell>
                           </TableRow>
                         ))
                       )}
