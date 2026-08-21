@@ -43,6 +43,7 @@ interface ConsignProduct {
   status: string;
   is_active: boolean;
   created_at: string;
+  order_status?: string | null; // 已售出商品对应的订单状态（待确认/已确认）
 }
 
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
@@ -133,11 +134,28 @@ export default function MBuyWarehousePage() {
         .select('id,title,images,consignment_price,status,is_active,created_at')
         .eq('seller_id', mobileUser.id)
         .eq('status', 'approved')
-        .eq('is_active', true)   // 只显示寄卖中的商品
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }),  // 同时加载寄卖中与已售出商品，保证数量匹配
     ]);
+    const prods = (prodRes.data as unknown as ConsignProduct[]) ?? [];
+    // 为已售出商品补充订单状态（待确认/已确认）
+    const soldIds = prods.filter(p => !p.is_active).map(p => p.id);
+    let orderStatusMap: Record<string, string> = {};
+    if (soldIds.length > 0) {
+      const { data: soldOrders } = await supabase
+        .from('orders')
+        .select('product_id, status')
+        .in('product_id', soldIds)
+        .not('status', 'in', '("cancelled","disputed")');
+      (soldOrders ?? []).forEach((o: { product_id: string; status: string }) => {
+        orderStatusMap[o.product_id] = o.status;
+      });
+    }
+    const prodsWithOrderStatus = prods.map(p => ({
+      ...p,
+      order_status: orderStatusMap[p.id] ?? null,
+    })) as unknown as ConsignProduct[];
     setOrders((ordRes.data as unknown as BuyOrder[]) ?? []);
-    setConsignProducts((prodRes.data as unknown as ConsignProduct[]) ?? []);
+    setConsignProducts(prodsWithOrderStatus);
     setLoading(false);
   }, [mobileUser]);
 
@@ -360,15 +378,22 @@ export default function MBuyWarehousePage() {
                   <div className="space-y-2">
                     {consignProducts.map(p => {
                       const img = p.images?.[0] ?? null;
+                      // 已售出商品按订单状态显示：待确认 / 已确认
+                      const soldStatusLabel = p.order_status === 'confirmed'
+                        ? '已确认'
+                        : p.order_status === 'payment_uploaded' || p.order_status === 'pending_payment'
+                          ? '待确认'
+                          : '已售出';
                       const statusLabel =
                         p.status === 'approved' && p.is_active ? '寄卖中' :
-                        p.status === 'approved' && !p.is_active ? '已售出' :
+                        p.status === 'approved' && !p.is_active ? soldStatusLabel :
                         p.status === 'pending' ? '审核中' :
                         p.status === 'rejected' ? '已拒绝' :
                         p.status === 'withdrawn' ? '已下架' : p.status;
                       const statusColor =
                         p.status === 'approved' && p.is_active ? 'text-green-600 bg-green-50 border-green-200' :
-                        p.status === 'approved' && !p.is_active ? 'text-muted-foreground bg-muted border-border' :
+                        p.status === 'approved' && !p.is_active && p.order_status === 'confirmed' ? 'text-blue-600 bg-blue-50 border-blue-200' :
+                        p.status === 'approved' && !p.is_active ? 'text-orange-600 bg-orange-50 border-orange-200' :
                         p.status === 'pending' ? 'text-orange-600 bg-orange-50 border-orange-200' :
                         'text-destructive bg-destructive/5 border-destructive/20';
                       return (
@@ -606,13 +631,7 @@ export default function MBuyWarehousePage() {
                                     order_id: order.id, from_status: 'confirmed', to_status: 'completed',
                                     operator_type: 'buyer', operator_id: mobileUser!.id, remark: '买方标记自用，交易完成',
                                   });
-                                  // 进货区订单完成 → 升级为正式商家
-                                  if (order.is_rush && mobileUser!.merchant_type !== 'regular') {
-                                    await supabase.from('users').update({ merchant_type: 'regular' }).eq('id', mobileUser!.id);
-                                    toast.success('已标记自用，交易完成！🎉 恭喜升级为正式商家');
-                                  } else {
-                                    toast.success('已标记自用，交易完成');
-                                  }
+                                  toast.success('已标记自用，交易完成');
                                   load();
                                 }}
                               >

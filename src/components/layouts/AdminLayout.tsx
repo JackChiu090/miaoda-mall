@@ -100,6 +100,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: ClipboardCheck,
     children: [
       { label: '招商考核', path: '/merchant-assessment', icon: ClipboardCheck },
+      { label: '体验商家列表', path: '/trial-merchants', icon: Users },
       { label: '交易凭证核查', path: '/voucher-review', icon: SearchCode },
       { label: '商品溯源查询', path: '/product-trace', icon: SearchCode },
     ],

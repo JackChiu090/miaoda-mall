@@ -344,7 +344,7 @@ export default function OrdersPage2() {
                   <td className={`px-3 py-2.5 text-xs font-mono whitespace-nowrap font-medium ${diff >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                     {diff >= 0 ? '+' : ''}¥{diff.toFixed(2)}
                   </td>
-                  {/* 直接奖励：从 referral_rewards 取，含老板作为推荐奖励接收人的情况 */}
+                  {/* 直接奖励：从 account_transactions 取（promotion 账户「直接奖励」入账） */}
                   <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                     {r.direct_reward > 0
                       ? <span className="font-mono text-green-600 dark:text-green-400 font-medium">¥{r.direct_reward.toFixed(2)}</span>

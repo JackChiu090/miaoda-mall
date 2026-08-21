@@ -608,7 +608,7 @@ export default function FlashBuyManagePage() {
                       >🔥 正式进货</Button>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1.5">
-                      早场：体验商家可选 1 单 / 正式商家系统自动 2 单；正式进货：按推荐人数（已成为正式商家）阶梯，直推 1 人→2 单…5 人→6 单封顶
+                      早场：体验商家可选 1 单 / 正式商家系统自动 2 单；主场进货：按推荐人数阶梯，推荐 1 人→2 单…5 人→6 单封顶（体验商家主场无法购买）
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">

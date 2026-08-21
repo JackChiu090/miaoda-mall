@@ -201,19 +201,66 @@ CREATE OR REPLACE FUNCTION "public"."mark_trial_merchants"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 BEGIN
-  -- 连续2次以上未进货 → 重置为体验商家
-  UPDATE users
-    SET merchant_type = 'trial', consecutive_missed = consecutive_missed + 1
-  WHERE id IN (
-    SELECT u.id FROM users u
-    WHERE u.merchant_type = 'regular'
-      AND NOT EXISTS (
-        SELECT 1 FROM orders o
-        WHERE o.buyer_id = u.id
-          AND o.created_at >= now() - interval '2 days'
-          AND o.status NOT IN ('cancelled')
-      )
-  );
+  -- 无任何推荐关系（referrer_id 指向自己的人数=0）的正式商家 → 降级为体验商家（老板除外）
+  UPDATE users u
+    SET merchant_type = 'trial'
+  WHERE u.merchant_type = 'regular'
+    AND u.is_super_admin = false
+    AND NOT EXISTS (SELECT 1 FROM users r WHERE r.referrer_id = u.id);
+END;
+$$;
+
+
+--
+-- Name: promote_referrer_to_regular(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION "public"."promote_referrer_to_regular"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- 有推荐关系建立时，将推荐人升级为正式商家（不管是否完成订单交易）
+  IF NEW.referrer_id IS NOT NULL THEN
+    UPDATE users SET merchant_type = 'regular'
+    WHERE id = NEW.referrer_id AND merchant_type <> 'regular';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: mark_product_sold_on_order(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION "public"."mark_product_sold_on_order"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- 有商家进货时，对应减少老板寄卖商品数量（is_active=false）
+  IF NEW.product_id IS NOT NULL THEN
+    UPDATE products SET is_active = false
+    WHERE id = NEW.product_id AND is_active = true;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: restore_product_on_cancel(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION "public"."restore_product_on_cancel"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+BEGIN
+  -- 订单取消时恢复商品上架（is_active=true），保证数量守恒
+  IF NEW.status = 'cancelled' AND OLD.status <> 'cancelled' AND NEW.product_id IS NOT NULL THEN
+    UPDATE products SET is_active = true
+    WHERE id = NEW.product_id AND is_active = false;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 
@@ -3074,6 +3121,27 @@ CREATE OR REPLACE TRIGGER "trg_order_no" BEFORE INSERT ON "public"."orders" FOR 
 --
 
 CREATE OR REPLACE TRIGGER "trg_users_password_policy" BEFORE INSERT OR UPDATE OF "password" ON "public"."users" FOR EACH ROW EXECUTE FUNCTION "public"."enforce_user_password_policy"();
+
+
+--
+-- Name: users trg_promote_referrer; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE TRIGGER "trg_promote_referrer" AFTER INSERT OR UPDATE OF "referrer_id" ON "public"."users" FOR EACH ROW EXECUTE FUNCTION "public"."promote_referrer_to_regular"();
+
+
+--
+-- Name: orders trg_mark_product_sold; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE TRIGGER "trg_mark_product_sold" AFTER INSERT ON "public"."orders" FOR EACH ROW EXECUTE FUNCTION "public"."mark_product_sold_on_order"();
+
+
+--
+-- Name: orders trg_restore_product_on_cancel; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE TRIGGER "trg_restore_product_on_cancel" AFTER UPDATE OF "status" ON "public"."orders" FOR EACH ROW EXECUTE FUNCTION "public"."restore_product_on_cancel"();
 
 
 --

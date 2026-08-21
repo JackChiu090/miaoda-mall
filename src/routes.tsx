@@ -101,6 +101,7 @@ import MorningIncentivePage from './pages/admin/MorningIncentivePage';
 import ClearTestDataPage from './pages/admin/ClearTestDataPage';
 import FeaturedSpotlightPage from './pages/admin/FeaturedSpotlightPage';
 import ResellConfigPage from './pages/admin/ResellConfigPage';
+import TrialMerchantsPage from './pages/admin/TrialMerchantsPage';
 
 // 会员系统
 import MemberRegisterPage from './pages/member/MemberRegisterPage';
@@ -183,6 +184,7 @@ export const routes: RouteConfig[] = [
   // 进货市场·进货管理
   { name: '进货时段管理', path: '/flash-buy-manage', element: guard(<FlashBuyManagePage />) },
   { name: '早市分级激励', path: '/morning-incentive', element: guard(<MorningIncentivePage />) },
+  { name: '体验商家列表', path: '/trial-merchants', element: guard(<TrialMerchantsPage />) },
   { name: '测试数据清除', path: '/clear-test-data', element: guard(<ClearTestDataPage />) },
   { name: '进货商品管理', path: '/rush-products', element: guard(<RushProductsPage />) },
   { name: '转拍时间设置', path: '/resell-config', element: guard(<ResellConfigPage />) },

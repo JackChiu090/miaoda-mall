@@ -28,7 +28,7 @@ const RATE_CONFIG = [
 // 业务规则
 const RULE_CONFIG = [
   { key: 'resell_premium_rate',             label: '转拍固定溢价率',         desc: '每轮交易流转自动加价比例（如 0.03 = 3%）',                   unit: '%' },
-  { key: 'trial_required_days',             label: '体验商家考核工作日数',   desc: '体验商家需在此工作日天数内每天完成进货，否则视为考核不达标（默认15天）', unit: '天' },
+  { key: 'trial_required_days',             label: '体验商家考核工作日数',   desc: '注册起在此工作日天数内未推广任何商家则列为体验商家（默认15天）', unit: '天' },
   { key: 'trial_daily_rush_min',            label: '体验商家每日最低进货',   desc: '体验商家工作日内至少需完成的进货单数（默认1单）',             unit: '单' },
   { key: 'trial_daily_rush_max',            label: '体验商家每日最高进货',   desc: '体验商家工作日内最多可完成的进货单数（默认2单）',             unit: '单' },
   { key: 'regular_daily_rush_min',          label: '正式商家每日必须进货',   desc: '正式商家工作日内每天必须完成的进货单数（默认2单）',           unit: '单' },
@@ -38,9 +38,9 @@ const RULE_CONFIG = [
 ];
 
 // 进货额度规则（时间完全由「进货管理-时段参数配置」模块决定，此处仅保留额度参数）
-// 主场进货阶梯：直推 N 人（已成为正式商家）→ N+1 单，封顶 rush_max_per_day 单
+// 主场进货阶梯：直推 N 人（不管是否完成订单交易都计算）→ N+1 单，封顶 rush_max_per_day 单
 const RUSH_MAIN_CONFIG = [
-  { key: 'rush_max_per_day',       label: '主场进货封顶单数',     desc: '直推1人(正式商家)→2单、2人→3单…5人→6单，此为每日封顶单数（默认6单）', unit: '单' },
+  { key: 'rush_max_per_day',       label: '主场进货封顶单数',     desc: '推荐1人→2单、2人→3单…5人→6单，此为每日封顶单数（默认6单）', unit: '单' },
 ];
 
 const SETTINGS_CONFIG = [
@@ -197,7 +197,7 @@ export default function SettingsPage() {
                   进货时间：由「进货管理 → 时段参数配置」模块统一设定，系统严格按配置时段执行
                 </p>
                 <p>
-                  阶梯上限（主场进货）：正式商家直推 N 人（已成为正式商家）→ N+1 单：直推 1 人→2 单 / 2 人→3 单 / 3 人→4 单 / 4 人→5 单 / 5 人→6 单，每日最多{' '}
+                  阶梯上限（主场进货）：正式商家直推 N 人（不管是否完成订单交易都计算）→ N+1 单：推荐 1 人→2 单 / 2 人→3 单 / 3 人→4 单 / 4 人→5 单 / 5 人→6 单，每日最多{' '}
                   <span className="font-mono text-foreground">{values['rush_max_per_day'] ?? '6'}</span> 单封顶
                 </p>
               </div>

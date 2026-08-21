@@ -353,7 +353,7 @@ function RushRuleBanner({
     }
   } else {
     title = '🔥 主场进货';
-    desc = `按推荐人数（已成为正式商家）决定可进货数：推荐1人→2单 / 2人→3单 / 3人→4单 / 4人→5单 / 5人→6单（封顶）。当前已成为正式商家的被推荐人 ${rc} 人`;
+    desc = `按推荐人数决定可进货数：推荐1人→2单 / 2人→3单 / 3人→4单 / 4人→5单 / 5人→6单（封顶）。当前被推荐人 ${rc} 人`;
     icon = <Flame size={15} className="text-orange-500 shrink-0" />;
     accent = 'border-orange-300/60 bg-orange-500/10';
   }
@@ -460,16 +460,9 @@ export default function MRushPage() {
         .eq('activity_date', new Date(getServerNow() + 8 * 3600000).toISOString().slice(0, 10))
         .order('priority', { ascending: true }),
     ]);
-    // 主场阶梯依据：被推荐人中"已成为正式商家"（merchant_type=regular）的人数
+    // 主场阶梯依据：被推荐人总数（不管是否完成订单交易都计算）
     const referredIds = (referredUsers ?? []).map((u: { id: string }) => u.id);
-    let completedReferral = 0;
-    if (referredIds.length > 0) {
-      const { data: regularMerchants } = await supabase.from('users')
-        .select('id')
-        .in('id', referredIds)
-        .eq('merchant_type', 'regular');
-      completedReferral = (regularMerchants ?? []).length;
-    }
+    const completedReferral = referredIds.length;
     setReferralCount(completedReferral);
     setTodayOrderCount(todayCnt ?? 0);
     setTimeSlots((slotsRes.data as unknown as TimeSlot[]) ?? []);
@@ -598,9 +591,11 @@ export default function MRushPage() {
    */
   const computeDayLimit = (sessionType: 'early' | 'formal', rc: number) => {
     if (sessionType === 'early') {
+      // 早场：体验商家 1 单，正式商家 2 单（早市激励配置可调）
       return mobileUser?.merchant_type === 'regular' ? incentiveCfg.regular : incentiveCfg.trial;
     }
-    // rc=0：未推荐或推荐人非正式商家 → 主场0单；rc≥1：rc+1单，封顶 maxPerDay 单
+    // 主场：体验商家无法购买（0单）；正式商家按推荐人数阶梯 rc+1 单，封顶 maxPerDay
+    if (mobileUser?.merchant_type !== 'regular') return 0;
     return rc === 0 ? 0 : Math.min(rc + 1, maxPerDay);
   };
 
@@ -634,15 +629,8 @@ export default function MRushPage() {
         .eq('referrer_id', userId),
     ]);
     const referredIds = (referredUsers ?? []).map((u: { id: string }) => u.id);
-    // 主场阶梯依据：被推荐人中"已成为正式商家"（merchant_type=regular）的人数
-    let rc = 0;
-    if (referredIds.length > 0) {
-      const { data: regularMerchants } = await supabase.from('users')
-        .select('id')
-        .in('id', referredIds)
-        .eq('merchant_type', 'regular');
-      rc = (regularMerchants ?? []).length;
-    }
+    // 主场阶梯依据：被推荐人总数（不管是否完成订单交易都计算）
+    const rc = referredIds.length;
     const tc = todayCnt ?? 0;
 
     // ② 自定义活动优先解析当前生效时段（覆盖默认）

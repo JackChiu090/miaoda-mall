@@ -95,7 +95,7 @@ export default function MMarketPage() {
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 已成为正式商家的被推荐人数 & 今日可抢上限
+  // 被推荐人总数 & 今日可抢上限
   // 阶梯规则：0人→0单；1人→2单；2人→3单；...；5人→6单（封顶，参数可调）
   const [referralCount, setReferralCount] = useState<number | null>(null);
   const [todayOrderCount, setTodayOrderCount] = useState<number | null>(null);
@@ -110,16 +110,9 @@ export default function MMarketPage() {
       supabase.from('users').select('id').eq('referrer_id', mobileUser.id),
       supabase.from('system_settings').select('value').eq('key', 'rush_max_per_day').maybeSingle(),
     ]);
-    // 主场阶梯依据：被推荐人中"已成为正式商家"（merchant_type=regular）的人数
-    let completedRefCnt = 0;
+    // 主场阶梯依据：被推荐人总数（不管是否完成订单交易都计算）
     const referredIds = (referredUsers ?? []).map((u: { id: string }) => u.id);
-    if (referredIds.length > 0) {
-      const { data: regularMerchants } = await supabase.from('users')
-        .select('id')
-        .in('id', referredIds)
-        .eq('merchant_type', 'regular');
-      completedRefCnt = (regularMerchants ?? []).length;
-    }
+    const completedRefCnt = referredIds.length;
     setReferralCount(completedRefCnt);
     setTodayOrderCount(todayCnt ?? 0);
     setMaxPerDay(parseInt(maxRow?.value ?? '6') || 6);
@@ -251,16 +244,17 @@ export default function MMarketPage() {
       supabase.from('users').select('id').eq('referrer_id', mobileUser.id),
     ]);
     const referredIds2 = (referredUsers2 ?? []).map((u: { id: string }) => u.id);
-    let rc = 0;
-    if (referredIds2.length > 0) {
-      const { data: regularMerchants2 } = await supabase.from('users')
-        .select('id').in('id', referredIds2).eq('merchant_type', 'regular');
-      rc = (regularMerchants2 ?? []).length;
+    // 主场阶梯依据：被推荐人总数（不管是否完成订单交易都计算）
+    const rc = referredIds2.length;
+    // 体验商家主场无法购买
+    if (mobileUser.merchant_type !== 'regular') {
+      toast.error('体验商家无法参与主场进货，请先推广商家升级为正式商家');
+      return;
     }
-    // 阶梯计算：0人(正式商家)→0单；N人→N+1单，封顶 maxPerDay 单
+    // 阶梯计算：0人→0单；N人→N+1单，封顶 maxPerDay 单
     const dayLimit = rc === 0 ? 0 : Math.min(rc + 1, maxPerDay);
     if (dayLimit === 0) {
-      toast.error('主场进货需至少推荐 1 位好友并成为正式商家才可参与');
+      toast.error('主场进货需至少推荐 1 位好友才可参与');
       return;
     }
     if ((todayCnt ?? 0) >= dayLimit) {
@@ -397,10 +391,10 @@ export default function MMarketPage() {
         {mobileUser && referralCount !== null && (
           <div className="mx-4 mt-2 rounded-xl border border-border bg-card overflow-hidden">
             <div className="flex items-stretch divide-x divide-border">
-              {/* 已成为正式商家的推荐人数 */}
+              {/* 被推荐人总数 */}
               <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
                 <span className="text-lg font-black text-primary leading-none">{referralCount}</span>
-                <span className="text-[10px] text-muted-foreground">正式商家</span>
+                <span className="text-[10px] text-muted-foreground">被推荐人</span>
               </div>
               {/* 今日可抢 */}
               <div className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5">
@@ -441,7 +435,7 @@ export default function MMarketPage() {
                   <div className="bg-destructive/5 border-t border-destructive/20 px-3 py-1.5 flex items-center gap-1.5">
                     <Lock size={11} className="text-destructive shrink-0" />
                     <span className="text-[10px] text-destructive">
-                      需至少推荐 1 位好友并成为正式商家才可参与主场进货
+                      需至少推荐 1 位好友才可参与主场进货
                     </span>
                   </div>
                 );
@@ -462,7 +456,7 @@ export default function MMarketPage() {
                 <div className="bg-orange-500/5 border-t border-orange-200/50 px-3 py-1.5 flex items-center gap-1.5">
                   <Zap size={11} className="text-orange-500 shrink-0" />
                   <span className="text-[10px] text-orange-600">
-                    今日还可抢 {left} 单 · {referralCount} 人已成为正式商家 → 上限 {dayLimit} 单
+                    今日还可抢 {left} 单 · 已推荐 {referralCount} 人 → 上限 {dayLimit} 单
                   </span>
                 </div>
               );
