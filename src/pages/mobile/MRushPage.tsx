@@ -488,12 +488,13 @@ export default function MRushPage() {
   }, [mobileUser]);
 
   const load = useCallback(async () => {
+    // 展示全部在售商品（含商家转拍 is_resell=true 与未被进货买走的寄卖商品 is_resell=false），
+    // 不做 limit 限制，避免漏发；is_active=false 的已售商品由前端过滤
     const prodRes = await supabase
       .from('products')
       .select('id,title,consignment_price,images,is_resell,is_active')
       .eq('status', 'approved')
-      .order('created_at', { ascending: false })
-      .limit(20);  // 展示全部商品（含已被进货的）
+      .order('created_at', { ascending: false });
     const prods = (prodRes.data as unknown as PreviewProduct[]) ?? [];
     setPreviewProducts(prods);
     setLoading(false);

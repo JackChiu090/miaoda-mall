@@ -835,7 +835,7 @@ CREATE TABLE IF NOT EXISTS "public"."orders" (
     "is_rush" boolean DEFAULT false NOT NULL,
     "rush_slot_id" "uuid",
     "rush_activity_id" "uuid",
-    CONSTRAINT "orders_status_check" CHECK (("status" = ANY (ARRAY['pending_payment'::"text", 'payment_uploaded'::"text", 'confirmed'::"text", 'completed'::"text", 'cancelled'::"text", 'disputed'::"text", 'resell_listed'::"text"])))
+    CONSTRAINT "orders_status_check" CHECK (("status" = ANY (ARRAY['pending_payment'::"text", 'payment_uploaded'::"text", 'confirmed'::"text", 'completed'::"text", 'cancelled'::"text", 'disputed'::"text", 'resell_listed'::"text", 'split'::"text"])))
 );
 
 

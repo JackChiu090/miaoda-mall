@@ -7,8 +7,7 @@
  *     - 老板分红（boss_bonus_rate）    → 固定老板用户 bonus 账户
  *     - 代金券储备（voucher_reserve_rate 0.3%）→ 买方 points 账户 + 全局 voucher_pool 累计
  *  3. 直接奖励（direct_referral_rate 订单金额 × 0.2%，发到 promotion 账户）：
- *     向上遍历推荐链，找到「当天上午10点前完成进货订单」的最近推荐人作为奖励获得者；
- *     若整条链都未在截止前完成，则奖励给最上级推荐人（链顶兜底）
+ *     直接奖励给买方的直接推荐人（referrer_id），一级，不再向上递推
  */
 import { supabase } from '@/db/supabase';
 
@@ -119,7 +118,7 @@ export async function settleSellerEarnings(params: SettleParams): Promise<Settle
   const BOSS_USER_ID = 'a256890e-d87a-4b90-8158-301007001c23'; // 13924151349
 
   // ── 5. 并行分发奖励（商家分红 / 老板分红 / 代金券储备）──
-  // 注：直接奖励（direct_referral_rate 0.2%）由 Step 7 settleReferralReward 按推荐链路递推发放
+  // 注：直接奖励（direct_referral_rate 0.2%）在下方 Step 6 由 settleReferralReward 直接发给买方直接推荐人
   const merchantAmt = Number((orderAmount * merchantRate).toFixed(2));
   const bossAmt     = Number((orderAmount * bossRate).toFixed(2));
   const voucherAmt  = Number((orderAmount * voucherRate).toFixed(2));
@@ -146,21 +145,18 @@ export async function settleSellerEarnings(params: SettleParams): Promise<Settle
     })(),
   ]);
 
-  // ── 6. 直接奖励（推荐奖励）：向上遍历推荐链，按「当天10点前完成进货订单」规则递推发放 ──
+  // ── 6. 直接奖励：按 direct_referral_rate（默认 0.2%）发放给买方的直接推荐人 ──
   await settleReferralReward({ orderId, buyerId, orderAmount });
 
   return { success: true, netAmount, serviceFee: 0 };
 }
 
 /**
- * 向上遍历推荐链，按「当天10点前完成进货订单」规则递推发放直接奖励（推荐奖励）。
+ * 发放直接奖励（订单金额 × direct_referral_rate，默认 0.2%，发到 promotion 账户）。
  *
- * 规则（订单金额 × direct_referral_rate，默认 0.2%，发到 promotion 账户）：
- *  - 「当天」= 被推荐人本次结算触发时的北京日期
- *  - 「完成进货订单」= 该推荐人作为买家、在当天10:00前有 confirmed 状态的进货订单(is_rush=true)
- *  - 从直接推荐人开始逐级向上，找到最近的达标推荐人即奖励给他，并记录被跳过的中间层
- *  - 若整条链都未在截止时间前完成订单 → 奖励给最上级推荐人（链顶）
- *  - 若买方无任何推荐人 → 不发放
+ * 规则：
+ *  - 奖励对象 = 买方的直接推荐人（users.referrer_id），仅一级，不向上递推
+ *  - 买方无直接推荐人（referrer_id 为空）→ 不发放
  *  - 幂等：referral_rewards 表 order_id 唯一检查，防止重复发放
  */
 async function settleReferralReward({
@@ -185,93 +181,36 @@ async function settleReferralReward({
     .select('value')
     .eq('key', 'direct_referral_rate')
     .maybeSingle();
-  const ancestorRate = parseFloat(cfg?.value ?? '0.002');
-  const rewardAmt = Number((orderAmount * ancestorRate).toFixed(2));
+  const rate = parseFloat(cfg?.value ?? '0.002');
+  const rewardAmt = Number((orderAmount * rate).toFixed(2));
   if (rewardAmt <= 0) return;
 
-  // 「当天」= 结算触发时的北京日期；截止时间 = 当天上午10:00（北京时间）
-  const bjNow = new Date(Date.now() + 8 * 3600000);
-  const bjTodayStr = bjNow.toISOString().slice(0, 10); // YYYY-MM-DD（北京时间）
-  const deadlineUtc = new Date(`${bjTodayStr}T10:00:00+08:00`).toISOString();
+  // 直接奖励：发放给买方的直接推荐人（一级）
+  const { data: buyerRow } = await supabase
+    .from('users')
+    .select('referrer_id')
+    .eq('id', buyerId)
+    .maybeSingle();
+  const referrerId: string | null = buyerRow?.referrer_id ?? null;
 
-  // 向上遍历推荐链（最多10层防止死循环）
-  const MAX_DEPTH = 10;
-  let currentId = buyerId;
-  const skippedIds: string[] = [];
-  let topReferrerId: string | null = null; // 记录链顶推荐人，用于兜底
-
-  for (let i = 0; i < MAX_DEPTH; i++) {
-    const { data: row } = await supabase
-      .from('users')
-      .select('referrer_id')
-      .eq('id', currentId)
-      .maybeSingle();
-    const referrerId = row?.referrer_id;
-    if (!referrerId) break; // 已到链顶
-
-    topReferrerId = referrerId; // 持续更新为最上级推荐人
-
-    // 检查该推荐人是否在「当天10:00前」完成过进货订单（confirmed + is_rush）
-    const { count: rushCnt } = await supabase
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('buyer_id', referrerId)
-      .eq('is_rush', true)
-      .eq('status', 'confirmed')
-      .lt('created_at', deadlineUtc);
-
-    if ((rushCnt ?? 0) > 0) {
-      // 找到达标推荐人，发放奖励（记录上级层级与奖励比例）
-      await addUserAccount(
-        referrerId, 'promotion', rewardAmt, orderId,
-        `直接奖励（当天10点前完成进货）`,
-      );
-      await supabase.from('referral_rewards').insert({
-        order_id:        orderId,
-        buyer_id:        buyerId,
-        recipient_id:    referrerId,
-        skipped_ids:     skippedIds,
-        amount:          rewardAmt,
-        recipient_level: i + 1,
-        reward_rate:     ancestorRate,
-        status:          'settled',
-      });
-      console.log(`[settlement] referral_reward: buyer=${buyerId} → recipient=${referrerId}(达标, 第${i + 1}级), skipped=${skippedIds.length}, amount=${rewardAmt}`);
-      return;
-    }
-
-    // 未达标，写一条提醒记录通知该推荐人（金额为0，仅作提醒），继续向上
-    await supabase.from('account_transactions').insert({
-      user_id:          referrerId,
-      account_type:     'promotion',
-      type:             'notice',
-      amount:           0,
-      related_order_id: orderId,
-      description:      `直接奖励提醒：您未在当天10点前完成进货，本次奖励已转给上级推荐人，请明日10点前完成进货`,
-      created_at:       new Date().toISOString(),
-    });
-    skippedIds.push(referrerId);
-    currentId = referrerId;
+  if (!referrerId) {
+    console.log(`[settlement] direct_reward: buyer=${buyerId} 无直接推荐人，不发放`);
+    return;
   }
 
-  // 整条链都未在截止时间前完成订单 → 奖励给最上级推荐人
-  if (topReferrerId) {
-    await addUserAccount(
-      topReferrerId, 'promotion', rewardAmt, orderId,
-      `直接奖励（链顶兜底）`,
-    );
-    await supabase.from('referral_rewards').insert({
-      order_id:        orderId,
-      buyer_id:        buyerId,
-      recipient_id:    topReferrerId,
-      skipped_ids:     skippedIds,
-      amount:          rewardAmt,
-      recipient_level: skippedIds.length + 1,
-      reward_rate:     ancestorRate,
-      status:          'settled',
-    });
-    console.log(`[settlement] referral_reward: buyer=${buyerId} → top=${topReferrerId}(链顶兜底, 第${skippedIds.length + 1}级), skipped=${skippedIds.length}, amount=${rewardAmt}`);
-  } else {
-    console.log(`[settlement] referral_reward: no referrer for buyer=${buyerId}`);
-  }
+  await addUserAccount(
+    referrerId, 'promotion', rewardAmt, orderId,
+    `直接奖励（${(rate * 100).toFixed(1)}%）`,
+  );
+  await supabase.from('referral_rewards').insert({
+    order_id:        orderId,
+    buyer_id:        buyerId,
+    recipient_id:    referrerId,
+    skipped_ids:     [],
+    amount:          rewardAmt,
+    recipient_level: 1,
+    reward_rate:     rate,
+    status:          'settled',
+  });
+  console.log(`[settlement] direct_reward: buyer=${buyerId} → referrer=${referrerId}, amount=${rewardAmt}`);
 }

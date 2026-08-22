@@ -91,7 +91,7 @@ export default function OrderSplitPage() {
     <div className="p-6 space-y-6">
       <PageHeader
         title="拆单管理"
-        description={`当前触发阈值：订单金额 ≥ ¥${threshold.toLocaleString()} 自动拆分为两笔各 ¥${(threshold / 2).toLocaleString()} 的订单`}
+        description={`当前触发阈值：单笔流转溢价（订单金额 - 商品原价）≥ ¥${threshold.toLocaleString()} 时，自动将订单平均拆分为两笔（金额四舍五入取整）`}
         action={
           <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
             <RefreshCw size={14} />刷新

@@ -157,8 +157,8 @@ export default function MorningIncentivePage() {
                     <div className="flex items-start gap-2 bg-muted/60 rounded-lg p-3">
                       <Info size={14} className="text-primary shrink-0 mt-0.5" />
                       <p className="text-xs text-muted-foreground">
-                        推荐奖励（0.2%）已统一在「系统设置 → 分润费率 → 直接奖励」中发放，规则为推荐链路逐级向上、
-                        找到当天 10 点前完成订单的最近推荐人发放；奖励比例与截止时间以「直接奖励」费率为准，此处不再单独配置。
+                        直接奖励（0.2%）在「系统设置 → 分润费率 → 直接奖励」中配置，订单交易完成后直接发放给买方的直接推荐人；
+                        奖励比例以「直接奖励」费率为准，此处不再单独配置。
                       </p>
                     </div>
                     <Button onClick={handleSave} disabled={saving} className="gap-1.5">
