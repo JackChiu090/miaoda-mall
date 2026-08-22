@@ -14,7 +14,7 @@ INSERT INTO "public"."system_configs" (config_key, config_value, value_type, lab
   ('screening_enabled','true','boolean','吃土筛选开关','是否启用每日吃土筛选任务','screening',5),
   ('elimination_inactive_days','30','number','淘汰判定未登录天数','超过N天未登录列入淘汰扫描','elimination',10),
   ('elimination_enabled','true','boolean','淘汰清理开关','是否启用每周淘汰清理任务','elimination',5),
-  ('order_split_threshold','30000','number','拆单溢价阈值（元）','单笔流转溢价达到此金额触发拆单','order_split',10),
+  ('order_split_threshold','20000','number','拆单溢价阈值（元）','转拍商品价格达到此金额自动平均拆分为两单','order_split',10),
   ('order_split_enabled','true','boolean','拆单开关','是否启用自动拆单','order_split',5),
   ('team_split_shop_count','25','number','拆人触发商铺数量','团队有效商铺满N个触发拆人','team_split',10),
   ('team_split_min_volume','100000','number','拆人触发交易额（元）','团队累计交易额达到此金额才触发拆人','team_split',20),
