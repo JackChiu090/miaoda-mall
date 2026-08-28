@@ -9,9 +9,6 @@ INSERT INTO "public"."system_configs" (config_key, config_value, value_type, lab
   ('trial_period_days','5','number','体验期天数','新用户注册后的体验期天数（3~7天）','assessment',10),
   ('assessment_min_orders','1','number','考核最少完成交易数','体验期内需完成的最少交易单数','assessment',20),
   ('assessment_min_invites','0','number','考核最少招商人数','体验期内需成功邀请的最少人数','assessment',30),
-  ('screening_ratio_min','0.20','number','吃土筛选最低比例','每日吃土筛选活跃用户最低比例','screening',10),
-  ('screening_ratio_max','0.40','number','吃土筛选最高比例','每日吃土筛选活跃用户最高比例','screening',20),
-  ('screening_enabled','true','boolean','吃土筛选开关','是否启用每日吃土筛选任务','screening',5),
   ('elimination_inactive_days','30','number','淘汰判定未登录天数','超过N天未登录列入淘汰扫描','elimination',10),
   ('elimination_enabled','true','boolean','淘汰清理开关','是否启用每周淘汰清理任务','elimination',5),
   ('order_split_threshold','20000','number','拆单溢价阈值（元）','转拍商品价格达到此金额自动平均拆分为两单','order_split',10),
@@ -24,7 +21,6 @@ ON CONFLICT (config_key) DO NOTHING;
 -- 系统设置
 INSERT INTO "public"."system_settings" ("key", "value", "description") VALUES
   ('resell_premium_rate','0.03','转拍溢价比例'),('direct_referral_rate','0.002','直推奖励比例'),
-  ('eat_soil_rate','0.05','吃土扣除比例'),('new_user_eat_soil_days','5','新用户吃土宽限天数'),
   ('merchant_bonus_rate','0.01','商家分红比例'),('boss_bonus_rate','0.015','老板分红比例'),
   ('voucher_reserve_rate','0.003','代金券储备比例'),('voucher_pool_redeem_threshold','3980','代金券兑换阈值'),
   ('voucher_min_direct_referrals','3','兑换最少直推人数'),('rush_display_hour','9','进货展示小时'),
@@ -32,8 +28,6 @@ INSERT INTO "public"."system_settings" ("key", "value", "description") VALUES
   ('resell_cutoff_hour','14','转拍截止小时'),('resell_cutoff_minute','20','转拍截止分钟'),
   ('market_buy_start_hour','9','进货开始小时'),('market_buy_start_minute','30','进货开始分钟'),
   ('market_buy_end_hour','9','进货结束小时'),('market_buy_end_minute','35','进货结束分钟'),
-  ('eat_soil_min_active_users','20','吃土最小活跃用户数'),('eat_soil_deduct_rate','0.5','吃土扣款比例'),
-  ('eat_soil_recover_days','3','吃土恢复天数'),('eat_soil_freeze_referral_days','20','吃土冻结推荐天数'),
   ('trial_required_days','15','体验商家最多工作日'),('trial_daily_rush_min','1','体验商家每日进货下限'),
   ('trial_daily_rush_max','2','体验商家每日进货上限'),('regular_daily_rush_min','2','正式商家每日进货下限'),
   ('early_rush_start_hour','9','早场开放小时'),('early_rush_start_min','29','早场开放分钟'),

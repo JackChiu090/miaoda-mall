@@ -48,3 +48,6 @@ gen_keys.mjs
 
 # 工作目录与本地记忆（不提交）
 .workbuddy/
+
+# 本地服务器备份（含数据库 dump，不提交）
+aliyun-backup-*/

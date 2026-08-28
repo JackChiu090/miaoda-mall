@@ -21,7 +21,6 @@ const SUPER_ADMIN_PATHS = [
   '/voucher-review', '/product-trace',
   // 新增业务模块（仅超级管理员）
   '/merchant-assessment',
-  '/daily-screening',
   '/elimination',
   '/order-split',
   '/team-split',

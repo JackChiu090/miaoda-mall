@@ -29,8 +29,6 @@ const BUSINESS_TABLES = [
   'team_splits',
   'order_splits',
   'elimination_records',
-  'screening_records',
-  'daily_screenings',
   'user_assessments',
   'kyc_applications',
   'distribution_relations',

@@ -686,7 +686,10 @@ export default function MRushPage() {
     }
     // 时段模式：先校验全局库存（防止超配置限额），再校验单用户上限
     if (phase === 'slot') {
-      if (slotRemaining <= 0) {
+      // 早场（session_type='early'）严格按个人限额进货：体验商家 1 单、正式商家 2 单，
+      // 不做全局库存限制（转拍订单会累计进 sold 导致库存误判，从而错误拦截正式商家第 2 单）
+      const isEarlySession = slot?.session_type === 'early';
+      if (!isEarlySession && slotRemaining <= 0) {
         toast.error('该时段库存已抢完');
         return;
       }

@@ -257,7 +257,6 @@ export default function UsersPage() {
       user_status: 'active',
       assessment_status: 'pending',
       consecutive_missed: 0,
-      screening_today: false,
     });
     setAddingUser(false);
     if (error) { toast.error('新增失败：' + error.message); return; }
