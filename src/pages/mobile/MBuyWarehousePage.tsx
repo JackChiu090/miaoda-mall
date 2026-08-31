@@ -73,6 +73,59 @@ function canResellNow(startHour: number, startMinute: number) {
     (now.getHours() === startHour && now.getMinutes() >= startMinute);
 }
 
+// 转拍上架商品插入载荷
+type ResellProductPayload = {
+  seller_id: string;
+  title: string;
+  images: string[];
+  consignment_fee: number;
+  storage_fee: number;
+  status: string;
+  is_active: boolean;
+  generation: number;
+  origin_order_id: string;
+  is_resell: boolean;
+  resell_premium_rate: number;
+  original_price: number;
+  consignment_price: number;
+};
+
+// 幂等插入转拍商品：以「商品编号」(product_no) 作为唯一校验键。
+// 若该编号已存在（重复/并发请求），直接返回已存在商品，绝不重复插入，杜绝重复上架。
+// 返回 { id, created }：created=false 表示命中已存在商品（幂等复用，未发生新插入）。
+async function insertResellProductIdempotent(
+  payload: ResellProductPayload,
+  productNo: string,
+): Promise<{ id: string; created: boolean } | null> {
+  // 1. 先查：商品编号已存在则直接复用，避免重复插入
+  const { data: existing } = await supabase
+    .from('products')
+    .select('id')
+    .eq('product_no', productNo)
+    .maybeSingle();
+  if (existing) return { id: existing.id, created: false };
+
+  // 2. 再插：唯一索引兜底，并发重复请求在此被数据库拒绝
+  const { data: created, error } = await supabase
+    .from('products')
+    .insert({ ...payload, product_no: productNo })
+    .select('id')
+    .single();
+  if (!error && created) return { id: created.id, created: true };
+
+  // 3. 唯一约束冲突（并发重复请求命中 23505）→ 该商品编号已上架，幂等返回已存在商品
+  if (error && error.code === '23505') {
+    const { data: again } = await supabase
+      .from('products')
+      .select('id')
+      .eq('product_no', productNo)
+      .maybeSingle();
+    if (again) return { id: again.id, created: false };
+  }
+
+  return null;
+}
+
 export default function MBuyWarehousePage() {
   const { mobileUser } = useMobileUser();
   const navigate = useNavigate();
@@ -298,23 +351,23 @@ export default function MBuyWarehousePage() {
       const origHalfA = Math.floor(origInt / 2);
       const origHalfB = origInt - origHalfA;
 
-      const { data: prodA, error: errA } = await supabase.from('products').insert({
+      const prodA = await insertResellProductIdempotent({
         ...baseProduct,
         title: `${order.products.title}（拆单A）`,
         original_price: origHalfA,
         consignment_price: halfA,
-      }).select('id').single();
-      if (errA || !prodA) { await rollbackOrder(); toast.error('转拍拆分失败，请重试'); resellingRef.current.delete(order.id); setReselling(null); return; }
+      }, `${order.order_no}-A`);
+      if (!prodA) { await rollbackOrder(); toast.error('转拍拆分失败，请重试'); resellingRef.current.delete(order.id); setReselling(null); return; }
 
-      const { data: prodB, error: errB } = await supabase.from('products').insert({
+      const prodB = await insertResellProductIdempotent({
         ...baseProduct,
         title: `${order.products.title}（拆单B）`,
         original_price: origHalfB,
         consignment_price: halfB,
-      }).select('id').single();
-      if (errB || !prodB) {
-        // 回滚：删除已插入的 A 商品 + 恢复订单状态
-        await supabase.from('products').delete().eq('id', prodA.id);
+      }, `${order.order_no}-B`);
+      if (!prodB) {
+        // 回滚：仅当 A 商品为本次新建时才删除（幂等复用的已存在商品不可误删），并恢复订单状态
+        if (prodA.created) await supabase.from('products').delete().eq('id', prodA.id);
         await rollbackOrder();
         toast.error('转拍拆分失败，请重试');
         resellingRef.current.delete(order.id); setReselling(null);
@@ -324,13 +377,13 @@ export default function MBuyWarehousePage() {
       createdIds.push(prodA.id, prodB.id);
       successMsg = `转拍成功！价格 ¥${resellPrice.toLocaleString()} 达到阈值 ¥${splitThreshold.toLocaleString()}，已自动拆分为两单（¥${halfA.toLocaleString()} / ¥${halfB.toLocaleString()}）`;
     } else {
-      // 未达阈值：创建单个转拍商品
-      const { data: newProd, error: prodErr } = await supabase.from('products').insert({
+      // 未达阈值：创建单个转拍商品（product_no = 来源订单号，作为幂等唯一键）
+      const newProd = await insertResellProductIdempotent({
         ...baseProduct,
         original_price: order.amount,
         consignment_price: resellPrice,
-      }).select('id').single();
-      if (prodErr || !newProd) { await rollbackOrder(); toast.error('转拍上架失败'); resellingRef.current.delete(order.id); setReselling(null); return; }
+      }, order.order_no);
+      if (!newProd) { await rollbackOrder(); toast.error('转拍上架失败'); resellingRef.current.delete(order.id); setReselling(null); return; }
       createdIds.push(newProd.id);
       successMsg = `转拍成功！上架价格 ¥${resellPrice.toLocaleString()}（溢价${(premiumRate * 100).toFixed(1)}%）`;
     }
