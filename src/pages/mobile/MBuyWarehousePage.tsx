@@ -213,6 +213,12 @@ export default function MBuyWarehousePage() {
       return;
     }
     if (!order.products) { toast.error('找不到商品信息'); return; }
+    // 幂等防护：订单必须仍处于「已入库」状态才可转拍，否则中止（防止重复/过期操作）
+    if (order.status !== 'confirmed') {
+      toast.error('该订单已转拍或状态已变更，请刷新后重试');
+      load();
+      return;
+    }
     setReselling(order.id);
     const rate = premiumRate;
     const resellPrice = Math.ceil(order.amount * (1 + rate) * 100) / 100;
@@ -246,6 +252,38 @@ export default function MBuyWarehousePage() {
     const createdIds: string[] = [];
     let successMsg = '';
 
+    // ── 幂等防护：原子抢占订单状态（核心修复）──
+    // 将订单状态更新提前到商品插入之前，并加 .eq('status','confirmed') 条件。
+    // 条件更新在数据库层是原子的：并发/重复触发时只有一个请求能更新成功（返回 1 行），
+    // 其余请求返回 0 行立即中止，从根本上杜绝「同一订单重复创建寄卖商品」。
+    const { data: claimedRows, error: claimErr } = await supabase
+      .from('orders')
+      .update({
+        status: 'resell_listed',
+        resell_price: resellPrice,
+        resell_at: new Date().toISOString(),
+      })
+      .eq('id', order.id)
+      .eq('status', 'confirmed')
+      .select('id');
+
+    if (claimErr) { toast.error('转拍失败，请重试'); setReselling(null); return; }
+    if (!claimedRows || claimedRows.length === 0) {
+      toast.error('该订单已转拍，请勿重复操作');
+      setReselling(null);
+      load();
+      return;
+    }
+
+    // 商品插入失败时回滚订单状态，避免订单卡在「已转拍」却无对应商品
+    const rollbackOrder = async () => {
+      await supabase.from('orders').update({
+        status: 'confirmed',
+        resell_price: null,
+        resell_at: null,
+      }).eq('id', order.id).eq('status', 'resell_listed');
+    };
+
     if (shouldSplit) {
       // 平均拆分为 2 单：金额向下/向上取整，严禁小数，总和不变
       const totalInt = Math.round(resellPrice);
@@ -261,7 +299,7 @@ export default function MBuyWarehousePage() {
         original_price: origHalfA,
         consignment_price: halfA,
       }).select('id').single();
-      if (errA) { toast.error('转拍拆分失败，请重试'); setReselling(null); return; }
+      if (errA || !prodA) { await rollbackOrder(); toast.error('转拍拆分失败，请重试'); setReselling(null); return; }
 
       const { data: prodB, error: errB } = await supabase.from('products').insert({
         ...baseProduct,
@@ -269,7 +307,14 @@ export default function MBuyWarehousePage() {
         original_price: origHalfB,
         consignment_price: halfB,
       }).select('id').single();
-      if (errB) { toast.error('转拍拆分失败，请重试'); setReselling(null); return; }
+      if (errB || !prodB) {
+        // 回滚：删除已插入的 A 商品 + 恢复订单状态
+        await supabase.from('products').delete().eq('id', prodA.id);
+        await rollbackOrder();
+        toast.error('转拍拆分失败，请重试');
+        setReselling(null);
+        return;
+      }
 
       createdIds.push(prodA.id, prodB.id);
       successMsg = `转拍成功！价格 ¥${resellPrice.toLocaleString()} 达到阈值 ¥${splitThreshold.toLocaleString()}，已自动拆分为两单（¥${halfA.toLocaleString()} / ¥${halfB.toLocaleString()}）`;
@@ -280,17 +325,10 @@ export default function MBuyWarehousePage() {
         original_price: order.amount,
         consignment_price: resellPrice,
       }).select('id').single();
-      if (prodErr) { toast.error('转拍上架失败'); setReselling(null); return; }
+      if (prodErr || !newProd) { await rollbackOrder(); toast.error('转拍上架失败'); setReselling(null); return; }
       createdIds.push(newProd.id);
       successMsg = `转拍成功！上架价格 ¥${resellPrice.toLocaleString()}（溢价${(premiumRate * 100).toFixed(1)}%）`;
     }
-
-    // 更新订单状态为已转拍
-    await supabase.from('orders').update({
-      status: 'resell_listed',
-      resell_price: resellPrice,
-      resell_at: new Date().toISOString(),
-    }).eq('id', order.id);
 
     // 记录转拍记录（拆分时每条商品各记一条）
     for (const pid of createdIds) {
