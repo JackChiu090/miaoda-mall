@@ -87,6 +87,8 @@ export default function MBuyWarehousePage() {
   const [reselling, setReselling] = useState<string | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const camRefs  = useRef<Record<string, HTMLInputElement | null>>({});
+  // 转拍同步锁：记录正在转拍中的订单，快速连点时第二次点击直接静默忽略（前端幂等，配合 DB 条件更新双保险）
+  const resellingRef = useRef<Set<string>>(new Set());
   // 动态读取的转拍溢价率
   const [premiumRate, setPremiumRate] = useState(0.03);
   // 动态读取的转拍开始时间（默认 14:30）
@@ -206,6 +208,8 @@ export default function MBuyWarehousePage() {
   // 转拍（转拍时间由系统配置决定，批量流转溢价模式，溢价率从系统配置读取）
   // 转拍商品价格 >= 拆单阈值时，自动平均拆分为 2 单（两个半价商品），否则创建单个商品
   async function handleResell(order: BuyOrder) {
+    // 同步锁：同一订单重复点击时，第二次起直接静默忽略（多点无效）
+    if (resellingRef.current.has(order.id)) return;
     if (!resellStart.manualOverride && !canResellNow(resellStart.hour, resellStart.minute)) {
       const h = String(resellStart.hour).padStart(2, '0');
       const m = String(resellStart.minute).padStart(2, '0');
@@ -219,6 +223,7 @@ export default function MBuyWarehousePage() {
       load();
       return;
     }
+    resellingRef.current.add(order.id);
     setReselling(order.id);
     const rate = premiumRate;
     const resellPrice = Math.ceil(order.amount * (1 + rate) * 100) / 100;
@@ -267,10 +272,10 @@ export default function MBuyWarehousePage() {
       .eq('status', 'confirmed')
       .select('id');
 
-    if (claimErr) { toast.error('转拍失败，请重试'); setReselling(null); return; }
+    if (claimErr) { toast.error('转拍失败，请重试'); resellingRef.current.delete(order.id); setReselling(null); return; }
     if (!claimedRows || claimedRows.length === 0) {
       toast.error('该订单已转拍，请勿重复操作');
-      setReselling(null);
+      resellingRef.current.delete(order.id); setReselling(null);
       load();
       return;
     }
@@ -299,7 +304,7 @@ export default function MBuyWarehousePage() {
         original_price: origHalfA,
         consignment_price: halfA,
       }).select('id').single();
-      if (errA || !prodA) { await rollbackOrder(); toast.error('转拍拆分失败，请重试'); setReselling(null); return; }
+      if (errA || !prodA) { await rollbackOrder(); toast.error('转拍拆分失败，请重试'); resellingRef.current.delete(order.id); setReselling(null); return; }
 
       const { data: prodB, error: errB } = await supabase.from('products').insert({
         ...baseProduct,
@@ -312,7 +317,7 @@ export default function MBuyWarehousePage() {
         await supabase.from('products').delete().eq('id', prodA.id);
         await rollbackOrder();
         toast.error('转拍拆分失败，请重试');
-        setReselling(null);
+        resellingRef.current.delete(order.id); setReselling(null);
         return;
       }
 
@@ -325,7 +330,7 @@ export default function MBuyWarehousePage() {
         original_price: order.amount,
         consignment_price: resellPrice,
       }).select('id').single();
-      if (prodErr || !newProd) { await rollbackOrder(); toast.error('转拍上架失败'); setReselling(null); return; }
+      if (prodErr || !newProd) { await rollbackOrder(); toast.error('转拍上架失败'); resellingRef.current.delete(order.id); setReselling(null); return; }
       createdIds.push(newProd.id);
       successMsg = `转拍成功！上架价格 ¥${resellPrice.toLocaleString()}（溢价${(premiumRate * 100).toFixed(1)}%）`;
     }
@@ -340,7 +345,7 @@ export default function MBuyWarehousePage() {
       });
     }
 
-    setReselling(null);
+    resellingRef.current.delete(order.id); setReselling(null);
     toast.success(successMsg);
     load();
   }
