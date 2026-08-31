@@ -261,23 +261,32 @@ export default function MBuyWarehousePage() {
   // 转拍（转拍时间由系统配置决定，批量流转溢价模式，溢价率从系统配置读取）
   // 转拍商品价格 >= 拆单阈值时，自动平均拆分为 2 单（两个半价商品），否则创建单个商品
   async function handleResell(order: BuyOrder) {
-    // 同步锁：同一订单重复点击时，第二次起直接静默忽略（多点无效）
-    if (resellingRef.current.has(order.id)) return;
+    // 前端幂等防护：点击后立即加锁 + 置灰禁用，禁止短时间二次点击（多点无效）
+    if (resellingRef.current.has(order.id)) return; // 已在转拍中，静默忽略
+    resellingRef.current.add(order.id);
+    setReselling(order.id); // 立即置灰，本次事件结束后 React 同步 re-render
+
+    // 统一解锁：任何校验失败/异常退出都恢复按钮可用
+    const unlock = () => {
+      resellingRef.current.delete(order.id);
+      setReselling(null);
+    };
+
     if (!resellStart.manualOverride && !canResellNow(resellStart.hour, resellStart.minute)) {
       const h = String(resellStart.hour).padStart(2, '0');
       const m = String(resellStart.minute).padStart(2, '0');
       toast.error(`转拍时间为每周一至周五 ${h}:${m} 之后，请届时操作`);
+      unlock();
       return;
     }
-    if (!order.products) { toast.error('找不到商品信息'); return; }
+    if (!order.products) { toast.error('找不到商品信息'); unlock(); return; }
     // 幂等防护：订单必须仍处于「已入库」状态才可转拍，否则中止（防止重复/过期操作）
     if (order.status !== 'confirmed') {
       toast.error('该订单已转拍或状态已变更，请刷新后重试');
+      unlock();
       load();
       return;
     }
-    resellingRef.current.add(order.id);
-    setReselling(order.id);
     const rate = premiumRate;
     const resellPrice = Math.ceil(order.amount * (1 + rate) * 100) / 100;
 
