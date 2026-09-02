@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Coins, Gift, Users, CheckCircle2, XCircle, Package, ArrowRight, Sparkles } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { toast } from 'sonner';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 interface ExchangeItem {
   id: string;
@@ -55,11 +56,12 @@ export default function MExchangePage() {
   const [voucherPoolBalance, setVoucherPoolBalance] = useState(0);
   const [voucherThreshold, setVoucherThreshold] = useState(3980);
   const [minDirectReferrals, setMinDirectReferrals] = useState(3);
-  const [applyingVoucher, setApplyingVoucher] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const applyingVoucher = isPending('voucher');
 
   // 确认兑换弹窗
   const [confirmItem, setConfirmItem] = useState<ExchangeItem | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const submitting = isPending('exchange');
 
   useEffect(() => {
     if (!mobileUser) return;
@@ -117,30 +119,33 @@ export default function MExchangePage() {
   async function handleExchange() {
     if (!confirmItem || !mobileUser) return;
     if (!isFullyEligible(confirmItem)) { toast.error('不满足兑换条件'); return; }
-    setSubmitting(true);
+    if (!tryLock('exchange')) return;
 
-    const newPoints = eligibility.points - confirmItem.points_cost;
-    const { error: deductErr } = await supabase.from('virtual_accounts')
-      .update({ balance: newPoints })
-      .eq('user_id', mobileUser.id)
-      .eq('account_type', 'points');
-    if (deductErr) { toast.error('代金券扣减失败，请重试'); setSubmitting(false); return; }
+    try {
+      const newPoints = eligibility.points - confirmItem.points_cost;
+      const { error: deductErr } = await supabase.from('virtual_accounts')
+        .update({ balance: newPoints })
+        .eq('user_id', mobileUser.id)
+        .eq('account_type', 'points');
+      if (deductErr) { toast.error('代金券扣减失败，请重试'); return; }
 
-    const { error: orderErr } = await supabase.from('exchange_orders').insert({
-      user_id: mobileUser.id, item_id: confirmItem.id,
-      points_spent: confirmItem.points_cost, status: 'pending',
-    });
-    if (orderErr) {
-      await supabase.from('virtual_accounts').update({ balance: eligibility.points }).eq('user_id', mobileUser.id).eq('account_type', 'points');
-      toast.error('提交失败，请重试'); setSubmitting(false); return;
+      const { error: orderErr } = await supabase.from('exchange_orders').insert({
+        user_id: mobileUser.id, item_id: confirmItem.id,
+        points_spent: confirmItem.points_cost, status: 'pending',
+      });
+      if (orderErr) {
+        await supabase.from('virtual_accounts').update({ balance: eligibility.points }).eq('user_id', mobileUser.id).eq('account_type', 'points');
+        toast.error('提交失败，请重试'); return;
+      }
+
+      await supabase.from('exchange_items').update({ stock: confirmItem.stock - 1, exchanged: confirmItem.exchanged + 1 }).eq('id', confirmItem.id);
+      setEligibility(e => ({ ...e, points: newPoints }));
+      setItems(prev => prev.map(it => it.id === confirmItem.id ? { ...it, stock: it.stock - 1, exchanged: it.exchanged + 1 } : it));
+      setConfirmItem(null);
+      toast.success('兑换申请已提交，等待审核发货！');
+    } finally {
+      unlock('exchange');
     }
-
-    await supabase.from('exchange_items').update({ stock: confirmItem.stock - 1, exchanged: confirmItem.exchanged + 1 }).eq('id', confirmItem.id);
-    setEligibility(e => ({ ...e, points: newPoints }));
-    setItems(prev => prev.map(it => it.id === confirmItem.id ? { ...it, stock: it.stock - 1, exchanged: it.exchanged + 1 } : it));
-    setSubmitting(false);
-    setConfirmItem(null);
-    toast.success('兑换申请已提交，等待审核发货！');
   }
 
   // 代金券兑换申请（需直推≥3人 + 资金池≥门槛）
@@ -154,17 +159,20 @@ export default function MExchangePage() {
       toast.error(`代金券资金池不足 ¥${voucherThreshold}，当前 ¥${voucherPoolBalance.toFixed(2)}`);
       return;
     }
-    setApplyingVoucher(true);
-    const { error } = await supabase.from('voucher_redeem_requests').insert({
-      user_id: mobileUser.id,
-      amount: voucherPoolBalance,
-      pool_snapshot: voucherPoolBalance,
-      direct_count: eligibility.directReferrals,
-      status: 'pending',
-    });
-    setApplyingVoucher(false);
-    if (error) { toast.error('申请提交失败，请稍后重试'); return; }
-    toast.success('代金券兑换申请已提交，等待平台审核！');
+    if (!tryLock('voucher')) return;
+    try {
+      const { error } = await supabase.from('voucher_redeem_requests').insert({
+        user_id: mobileUser.id,
+        amount: voucherPoolBalance,
+        pool_snapshot: voucherPoolBalance,
+        direct_count: eligibility.directReferrals,
+        status: 'pending',
+      });
+      if (error) { toast.error('申请提交失败，请稍后重试'); return; }
+      toast.success('代金券兑换申请已提交，等待平台审核！');
+    } finally {
+      unlock('voucher');
+    }
   }
 
   const { coupon, directReferrals, points } = eligibility;

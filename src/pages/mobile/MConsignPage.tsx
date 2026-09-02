@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Upload, Info } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { toast } from 'sonner';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 interface Category { id: string; name: string; }
 
@@ -20,7 +21,8 @@ const FEE_RATE = 0.03;export default function MConsignPage() {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const loading = isPending('consign');
 
   useEffect(() => {
     supabase.from('product_categories').select('id,name').eq('is_active', true).order('sort_order')
@@ -43,24 +45,27 @@ const FEE_RATE = 0.03;export default function MConsignPage() {
       navigate('/m/auth');
       return;
     }
-    setLoading(true);
-    const { error } = await supabase.from('products').insert({
-      seller_id: mobileUser.id,
-      category_id: categoryId,
-      title: title.trim(),
-      description: desc.trim(),
-      original_price: FIXED_PRICE,
-      consignment_price: FIXED_PRICE,
-      consignment_fee: 0,
-      storage_fee: 0,
-      status: 'pending',
-    });
-    setLoading(false);
-    if (error) {
-      toast.error('提交失败，请重试');
-    } else {
-      toast.success('寄卖申请已提交，等待后台审核');
-      navigate('/m/profile');
+    if (!tryLock('consign')) return;
+    try {
+      const { error } = await supabase.from('products').insert({
+        seller_id: mobileUser.id,
+        category_id: categoryId,
+        title: title.trim(),
+        description: desc.trim(),
+        original_price: FIXED_PRICE,
+        consignment_price: FIXED_PRICE,
+        consignment_fee: 0,
+        storage_fee: 0,
+        status: 'pending',
+      });
+      if (error) {
+        toast.error('提交失败，请重试');
+      } else {
+        toast.success('寄卖申请已提交，等待后台审核');
+        navigate('/m/profile');
+      }
+    } finally {
+      unlock('consign');
     }
   };
 

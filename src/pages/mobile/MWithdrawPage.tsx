@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUpRight, Clock } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { toast } from 'sonner';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 interface WithdrawRecord { id: string; amount: number; status: string; created_at: string; bank_name: string; bank_account: string; }
 interface BankCard { id: string; bank_name: string; account_no: string; account_name: string; }
@@ -52,7 +53,8 @@ export default function MWithdrawPage() {
   const [amount, setAmount] = useState('');
   const [records, setRecords] = useState<WithdrawRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const submitting = isPending('withdraw');
 
   useEffect(() => {
     if (!mobileUser) { setLoading(false); return; }
@@ -81,21 +83,24 @@ export default function MWithdrawPage() {
     if (!opt?.canWithdraw) { toast.error('该账户不支持提现'); return; }
     if (!cardId) { toast.error('请先绑定银行卡'); navigate('/m/bind-card'); return; }
     const card = cards.find(c => c.id === cardId);
-    setSubmitting(true);
-    const { error } = await supabase.from('withdrawal_requests').insert({
-      user_id: mobileUser!.id,
-      account_type: accountType,
-      amount: val,
-      bank_name: card?.bank_name,
-      bank_account: card?.account_no,
-      bank_holder: card?.account_name,
-    });
-    setSubmitting(false);
-    if (error) { toast.error('提交失败，请重试'); return; }
-    toast.success('提现申请已提交，1-3个工作日内到账');
-    setAmount('');
-    supabase.from('user_accounts').select('account_type,balance').eq('user_id', mobileUser!.id).in('account_type', ['balance', 'bonus', 'promotion', 'points', 'coupon'])
-      .then(({ data }) => setAccounts((data as Account[]) ?? []));
+    if (!tryLock('withdraw')) return;
+    try {
+      const { error } = await supabase.from('withdrawal_requests').insert({
+        user_id: mobileUser!.id,
+        account_type: accountType,
+        amount: val,
+        bank_name: card?.bank_name,
+        bank_account: card?.account_no,
+        bank_holder: card?.account_name,
+      });
+      if (error) { toast.error('提交失败，请重试'); return; }
+      toast.success('提现申请已提交，1-3个工作日内到账');
+      setAmount('');
+      supabase.from('user_accounts').select('account_type,balance').eq('user_id', mobileUser!.id).in('account_type', ['balance', 'bonus', 'promotion', 'points', 'coupon'])
+        .then(({ data }) => setAccounts((data as Account[]) ?? []));
+    } finally {
+      unlock('withdraw');
+    }
   };
 
   return (

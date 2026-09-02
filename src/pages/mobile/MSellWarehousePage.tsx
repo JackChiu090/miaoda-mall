@@ -20,6 +20,7 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { settleSellerEarnings } from '@/lib/settlement';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 interface SellOrder {
   id: string;
@@ -69,7 +70,7 @@ export default function MSellWarehousePage() {
   const [consignProducts, setConsignProducts] = useState<ConsignProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(() => searchParams.get('tab') ?? 'all');
-  const [confirming, setConfirming] = useState<string | null>(null);
+  const { tryLock, unlock, isPending } = useSubmitLock();
   const [pendingConfirm, setPendingConfirm] = useState<SellOrder | null>(null);
   // 大图预览
   const [zoomImg, setZoomImg] = useState('');
@@ -105,31 +106,34 @@ export default function MSellWarehousePage() {
   useEffect(() => { load(); }, [mobileUser?.id]);
 
   async function handleConfirmReceipt(order: SellOrder) {
-    setConfirming(order.id);
-    // 1. 更新订单状态为已确认
-    const { error } = await supabase.from('orders').update({
-      status: 'confirmed',
-      confirmed_at: new Date().toISOString(),
-    }).eq('id', order.id).eq('status', 'payment_uploaded');
-    if (error) { setConfirming(null); setPendingConfirm(null); toast.error('操作失败，请重试'); return; }
+    if (!tryLock(order.id)) return;
+    try {
+      // 1. 更新订单状态为已确认
+      const { error } = await supabase.from('orders').update({
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+      }).eq('id', order.id).eq('status', 'payment_uploaded');
+      if (error) { setPendingConfirm(null); toast.error('操作失败，请重试'); return; }
 
-    // 2. 写状态流转日志
-    await supabase.from('order_status_logs').insert({
-      order_id: order.id, from_status: 'payment_uploaded', to_status: 'confirmed',
-      operator_type: 'seller', operator_id: mobileUser!.id, remark: '卖方确认收款',
-    });
+      // 2. 写状态流转日志
+      await supabase.from('order_status_logs').insert({
+        order_id: order.id, from_status: 'payment_uploaded', to_status: 'confirmed',
+        operator_type: 'seller', operator_id: mobileUser!.id, remark: '卖方确认收款',
+      });
 
-    // 3. 结算卖方收益 + 分润分配（含直接奖励：推荐链路10点前递推，统一在此发放）
-    const { netAmount, serviceFee } = await settleSellerEarnings({
-      orderId: order.id, sellerId: mobileUser!.id,
-      buyerId: order.buyer_id ?? '',
-      orderAmount: order.amount,
-    });
+      // 3. 结算卖方收益 + 分润分配（含直接奖励：推荐链路10点前递推，统一在此发放）
+      const { netAmount, serviceFee } = await settleSellerEarnings({
+        orderId: order.id, sellerId: mobileUser!.id,
+        buyerId: order.buyer_id ?? '',
+        orderAmount: order.amount,
+      });
 
-    setConfirming(null);
-    setPendingConfirm(null);
-    toast.success(`已确认收款！净收益 ¥${netAmount.toLocaleString()}（服务费 ¥${serviceFee.toLocaleString()}）`);
-    load();
+      setPendingConfirm(null);
+      toast.success(`已确认收款！净收益 ¥${netAmount.toLocaleString()}（服务费 ¥${serviceFee.toLocaleString()}）`);
+      load();
+    } finally {
+      unlock(order.id);
+    }
   }
 
   const filtered = tab === 'all' ? orders
@@ -243,7 +247,7 @@ export default function MSellWarehousePage() {
                   {filtered.map(order => {
                     const statusInfo = STATUS_MAP[order.status] ?? { label: order.status, variant: 'outline' as const };
                     const img = order.products?.images?.[0] ?? null;
-                    const isConfirming = confirming === order.id;
+                    const isConfirming = isPending(order.id);
 
                     return (
                       <div key={order.id} className="bg-card border border-border rounded-xl overflow-hidden">
@@ -380,9 +384,9 @@ export default function MSellWarehousePage() {
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => pendingConfirm && handleConfirmReceipt(pendingConfirm)}
-              disabled={!!confirming}
+              disabled={!!pendingConfirm && isPending(pendingConfirm.id)}
             >
-              {confirming ? '确认中…' : '确认收款'}
+              {pendingConfirm && isPending(pendingConfirm.id) ? '确认中…' : '确认收款'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

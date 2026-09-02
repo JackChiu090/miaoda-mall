@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CreditCard, Plus } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { toast } from 'sonner';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 interface BankCard { id: string; bank_name: string; account_no: string; account_name: string; is_default: boolean; created_at: string; }
 
@@ -19,7 +20,8 @@ export default function MBindCardPage() {
   const [bankName, setBankName] = useState('');
   const [cardNo, setCardNo] = useState('');
   const [holderName, setHolderName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const loading = isPending('bind');
 
   const loadCards = () => {
     if (!mobileUser) return;
@@ -33,20 +35,23 @@ export default function MBindCardPage() {
     if (!bankName) { toast.error('请选择银行'); return; }
     if (!/^\d{16,19}$/.test(cardNo.replace(/\s/g, ''))) { toast.error('请输入正确的银行卡号'); return; }
     if (!holderName.trim()) { toast.error('请输入持卡人姓名'); return; }
-    setLoading(true);
-    const { error } = await supabase.from('payment_accounts').insert({
-      user_id: mobileUser!.id,
-      account_type: 'bank',
-      bank_name: bankName,
-      account_no: cardNo.replace(/\s/g, ''),
-      account_name: holderName.trim(),
-      is_default: cards.length === 0,
-    });
-    setLoading(false);
-    if (error) { toast.error('绑定失败，请重试'); return; }
-    toast.success('银行卡绑定成功');
-    setBankName(''); setCardNo(''); setHolderName(''); setShowForm(false);
-    loadCards();
+    if (!tryLock('bind')) return;
+    try {
+      const { error } = await supabase.from('payment_accounts').insert({
+        user_id: mobileUser!.id,
+        account_type: 'bank',
+        bank_name: bankName,
+        account_no: cardNo.replace(/\s/g, ''),
+        account_name: holderName.trim(),
+        is_default: cards.length === 0,
+      });
+      if (error) { toast.error('绑定失败，请重试'); return; }
+      toast.success('银行卡绑定成功');
+      setBankName(''); setCardNo(''); setHolderName(''); setShowForm(false);
+      loadCards();
+    } finally {
+      unlock('bind');
+    }
   };
 
   const BANKS = ['中国工商银行', '中国建设银行', '中国农业银行', '中国银行', '交通银行', '招商银行', '浦发银行', '兴业银行', '中信银行', '光大银行', '民生银行', '平安银行'];

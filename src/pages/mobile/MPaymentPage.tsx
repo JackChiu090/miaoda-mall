@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Upload, ImageIcon, Camera, ImagePlus, RefreshCw } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { toast } from 'sonner';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 export default function MPaymentPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -16,7 +17,8 @@ export default function MPaymentPage() {
   const [amount, setAmount] = useState(0);
   const [sellerInfo, setSellerInfo] = useState<{ real_name: string | null; nickname: string; phone: string; kyc_status: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const submitting = isPending('submit');
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [voucherPreview, setVoucherPreview] = useState('');
 
@@ -47,7 +49,7 @@ export default function MPaymentPage() {
   const handleSubmit = async () => {
     if (!voucherFile) { toast.error('请上传付款凭证截图'); return; }
     if (!mobileUser) { navigate('/m/login'); return; }
-    setSubmitting(true);
+    if (!tryLock('submit')) return;
     try {
       const ext = voucherFile.name.split('.').pop() ?? 'jpg';
       const path = `${mobileUser.id}/${orderId}-${Date.now()}.${ext}`;
@@ -73,7 +75,7 @@ export default function MPaymentPage() {
     } catch (e: any) {
       toast.error('提交失败：' + (e?.message ?? '请重试'));
     } finally {
-      setSubmitting(false);
+      unlock('submit');
     }
   };
 

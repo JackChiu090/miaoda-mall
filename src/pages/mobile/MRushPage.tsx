@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { PullToRefreshIndicator } from '@/components/mobile/PullToRefreshIndicator';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 
 /**
@@ -529,7 +530,7 @@ export default function MRushPage() {
     return () => clearInterval(t);
   }, []);
 
-  const [rushingProd, setRushingProd] = useState<string | null>(null);
+  const { tryLock, unlock, isPending } = useSubmitLock();
   const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
   // 购买成功弹窗
   const [successModal, setSuccessModal] = useState<{ show: boolean; title: string }>({ show: false, title: '' });
@@ -668,58 +669,58 @@ export default function MRushPage() {
 
   // 直接进货预览商品（进货区）
   const handleFlashBuy = async (p: PreviewProduct) => {
-    if (!mobileUser) { navigate('/m/login'); return; }
-    if (!mobileUser.is_super_admin && mobileUser.kyc_status !== 'approved') { toast.error('请先完成实名认证'); navigate('/m/auth'); return; }
-
-    const result = await getRushPhaseAndLimit(mobileUser.id);
-    const { phase, dayLimit, todayCnt, slot } = result;
-    const slotRemaining = (result as { slotRemaining?: number }).slotRemaining ?? 0;
-
-    if (phase === 'none') {
-      const isWeekend = (result as { isWeekend?: boolean }).isWeekend;
-      toast.error(isWeekend ? '进货仅限工作日（周一至周五）开放' : '当前非进货时段，请耐心等待');
-      return;
-    }
-    if (phase === 'ended') {
-      toast.error('今日进货已结束');
-      return;
-    }
-    // 时段模式：先校验全局库存（防止超配置限额），再校验单用户上限
-    if (phase === 'slot') {
-      // 早场（session_type='early'）严格按个人限额进货：体验商家 1 单、正式商家 2 单，
-      // 不做全局库存限制（转拍订单会累计进 sold 导致库存误判，从而错误拦截正式商家第 2 单）
-      const isEarlySession = slot?.session_type === 'early';
-      if (!isEarlySession && slotRemaining <= 0) {
-        toast.error('该时段库存已抢完');
-        return;
-      }
-      if (dayLimit <= 0) {
-        toast.error('当前进货额度为 0，请先推荐好友并成为正式商家后再来进货');
-        return;
-      }
-      if (todayCnt >= dayLimit) {
-        toast.error(`今日进货已达上限（${dayLimit}单）`);
-        return;
-      }
-    }
-    // 老板无限制
-    if (phase !== 'boss' && phase !== 'slot' && todayCnt >= dayLimit) {
-      toast.error(dayLimit <= 0 ? '当前进货额度为 0，请先完成推荐任务' : `今日进货已达上限（${dayLimit}单）`);
-      return;
-    }
-
-    // 应用时段价格折扣（slot 模式）
-    const discount = slot?.price_discount ?? 1;
-    const finalPrice = Math.round(p.consignment_price * discount * 100) / 100;
-
-    // 早场所有商家均按点击商品直接购买（seller_id 从商品表取）
-    let targetProductId = p.id;
-    let targetSellerId  = mobileUser.id;
-    const { data: prodData } = await supabase.from('products').select('seller_id').eq('id', p.id).maybeSingle();
-    targetSellerId = prodData?.seller_id ?? mobileUser.id;
-
-    setRushingProd(p.id);
+    if (!tryLock(p.id)) return; // 同步锁：连点立即拦截
     try {
+      if (!mobileUser) { navigate('/m/login'); return; }
+      if (!mobileUser.is_super_admin && mobileUser.kyc_status !== 'approved') { toast.error('请先完成实名认证'); navigate('/m/auth'); return; }
+
+      const result = await getRushPhaseAndLimit(mobileUser.id);
+      const { phase, dayLimit, todayCnt, slot } = result;
+      const slotRemaining = (result as { slotRemaining?: number }).slotRemaining ?? 0;
+
+      if (phase === 'none') {
+        const isWeekend = (result as { isWeekend?: boolean }).isWeekend;
+        toast.error(isWeekend ? '进货仅限工作日（周一至周五）开放' : '当前非进货时段，请耐心等待');
+        return;
+      }
+      if (phase === 'ended') {
+        toast.error('今日进货已结束');
+        return;
+      }
+      // 时段模式：先校验全局库存（防止超配置限额），再校验单用户上限
+      if (phase === 'slot') {
+        // 早场（session_type='early'）严格按个人限额进货：体验商家 1 单、正式商家 2 单，
+        // 不做全局库存限制（转拍订单会累计进 sold 导致库存误判，从而错误拦截正式商家第 2 单）
+        const isEarlySession = slot?.session_type === 'early';
+        if (!isEarlySession && slotRemaining <= 0) {
+          toast.error('该时段库存已抢完');
+          return;
+        }
+        if (dayLimit <= 0) {
+          toast.error('当前进货额度为 0，请先推荐好友并成为正式商家后再来进货');
+          return;
+        }
+        if (todayCnt >= dayLimit) {
+          toast.error(`今日进货已达上限（${dayLimit}单）`);
+          return;
+        }
+      }
+      // 老板无限制
+      if (phase !== 'boss' && phase !== 'slot' && todayCnt >= dayLimit) {
+        toast.error(dayLimit <= 0 ? '当前进货额度为 0，请先完成推荐任务' : `今日进货已达上限（${dayLimit}单）`);
+        return;
+      }
+
+      // 应用时段价格折扣（slot 模式）
+      const discount = slot?.price_discount ?? 1;
+      const finalPrice = Math.round(p.consignment_price * discount * 100) / 100;
+
+      // 早场所有商家均按点击商品直接购买（seller_id 从商品表取）
+      let targetProductId = p.id;
+      let targetSellerId  = mobileUser.id;
+      const { data: prodData } = await supabase.from('products').select('seller_id').eq('id', p.id).maybeSingle();
+      targetSellerId = prodData?.seller_id ?? mobileUser.id;
+
       const { error } = await supabase.from('orders').insert({
         buyer_id:        mobileUser.id,
         seller_id:       targetSellerId,
@@ -740,7 +741,7 @@ export default function MRushPage() {
       await supabase.from('products').update({ is_active: false }).eq('id', targetProductId);
       setSuccessModal({ show: true, title: p.title });
     } catch { toast.error('网络异常，请重试'); }
-    finally { setRushingProd(null); }
+    finally { unlock(p.id); }
   };
 
   // ── 基于时段配置计算当前状态（每秒随 now 刷新，实时生效）──
@@ -943,7 +944,7 @@ export default function MRushPage() {
               <div className="columns-2 gap-3">
                 {visibleProducts.map(p => {
                   const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
-                  const isRushingThis = rushingProd === p.id;
+                  const isRushingThis = isPending(p.id);
                   return (
                     <div key={p.id} className="break-inside-avoid mb-3 bg-card border border-border rounded-xl overflow-hidden">
                       <div className="w-full aspect-[4/3] bg-muted overflow-hidden relative cursor-pointer active:opacity-90" onClick={() => handleFlashBuy(p)}>

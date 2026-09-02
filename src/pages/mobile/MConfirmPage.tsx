@@ -8,6 +8,7 @@ import { CheckCircle, AlertCircle } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 import { toast } from 'sonner';
 import { settleSellerEarnings } from '@/lib/settlement';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 export default function MConfirmPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -15,7 +16,8 @@ export default function MConfirmPage() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const submitting = isPending('confirm');
 
   useEffect(() => {
     if (!orderId) return;
@@ -26,30 +28,33 @@ export default function MConfirmPage() {
   }, [orderId]);
 
   const handleConfirm = async () => {
-    setSubmitting(true);
-    // 1. 状态: payment_uploaded → confirmed（买方可操作库存）
-    const { error } = await supabase.from('orders').update({
-      status: 'confirmed',
-      confirmed_at: new Date().toISOString(),
-    }).eq('id', orderId);
-    if (error) { setSubmitting(false); toast.error('操作失败，请重试'); return; }
+    if (!tryLock('confirm')) return;
+    try {
+      // 1. 状态: payment_uploaded → confirmed（买方可操作库存）
+      const { error } = await supabase.from('orders').update({
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString(),
+      }).eq('id', orderId);
+      if (error) { toast.error('操作失败，请重试'); return; }
 
-    // 2. 写状态流转日志
-    await supabase.from('order_status_logs').insert({
-      order_id: orderId, from_status: 'payment_uploaded', to_status: 'confirmed',
-      operator_type: 'seller', operator_id: mobileUser?.id, remark: '卖方确认收款，商品已归入买方库存',
-    });
+      // 2. 写状态流转日志
+      await supabase.from('order_status_logs').insert({
+        order_id: orderId, from_status: 'payment_uploaded', to_status: 'confirmed',
+        operator_type: 'seller', operator_id: mobileUser?.id, remark: '卖方确认收款，商品已归入买方库存',
+      });
 
-    // 3. 结算卖方收益 + 分润分配（含直接奖励：推荐链路10点前递推，统一在此发放）
-    await settleSellerEarnings({
-      orderId: orderId!, sellerId: mobileUser!.id,
-      buyerId: order.buyer_id,
-      orderAmount: order.amount,
-    });
+      // 3. 结算卖方收益 + 分润分配（含直接奖励：推荐链路10点前递推，统一在此发放）
+      await settleSellerEarnings({
+        orderId: orderId!, sellerId: mobileUser!.id,
+        buyerId: order.buyer_id,
+        orderAmount: order.amount,
+      });
 
-    setSubmitting(false);
-    toast.success('已确认收款');
-    navigate(`/m/order/${orderId}`);
+      toast.success('已确认收款');
+      navigate(`/m/order/${orderId}`);
+    } finally {
+      unlock('confirm');
+    }
   };
 
   if (loading) return (

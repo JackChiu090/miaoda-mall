@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import BottomTabBar from '@/components/mobile/BottomTabBar';
 import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { PullToRefreshIndicator } from '@/components/mobile/PullToRefreshIndicator';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 
 interface Product {
   id: string;
@@ -77,7 +78,7 @@ export default function MMarketPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState<string>('all');
-  const [buying, setBuying] = useState<string | null>(null);
+  const { tryLock, unlock, isPending } = useSubmitLock();
 
   // 市场配置
   const [config, setConfig] = useState<MarketConfig>({
@@ -229,53 +230,56 @@ export default function MMarketPage() {
 
   // 抢拍下单
   async function handleFlashBuy(p: Product) {
-    if (!mobileUser) { navigate('/m/login'); return; }
-    if (buyPhase !== 'active') {
-      toast.error(buyPhase === 'before'
-        ? `进货 ${config.buyStartHour}:${String(config.buyStartMinute).padStart(2,'0')} 才开始，请稍候`
-        : '本轮进货已结束，请明天再来');
-      return;
-    }
-    // 检查今日进货数限制（主场阶梯：0人→0单；N人(正式商家)→N+1单，封顶 maxPerDay 单）
-    const bjTodayStart2 = new Date(Math.floor((Date.now() + 8 * 3600000) / 86400000) * 86400000 - 8 * 3600000).toISOString();
-    const [{ count: todayCnt }, { data: referredUsers2 }] = await Promise.all([
-      supabase.from('orders').select('id', { count: 'exact', head: true })
-        .eq('buyer_id', mobileUser.id).gte('created_at', bjTodayStart2),
-      supabase.from('users').select('id').eq('referrer_id', mobileUser.id),
-    ]);
-    const referredIds2 = (referredUsers2 ?? []).map((u: { id: string }) => u.id);
-    // 主场阶梯依据：被推荐人总数（不管是否完成订单交易都计算）
-    const rc = referredIds2.length;
-    // 体验商家主场无法购买
-    if (mobileUser.merchant_type !== 'regular') {
-      toast.error('体验商家无法参与主场进货，请先推广商家升级为正式商家');
-      return;
-    }
-    // 阶梯计算：0人→0单；N人→N+1单，封顶 maxPerDay 单
-    const dayLimit = rc === 0 ? 0 : Math.min(rc + 1, maxPerDay);
-    if (dayLimit === 0) {
-      toast.error('主场进货需至少推荐 1 位好友才可参与');
-      return;
-    }
-    if ((todayCnt ?? 0) >= dayLimit) {
-      const hint = rc < maxPerDay - 1 ? `，推荐更多好友可提升上限（最多${maxPerDay}单）` : '';
-      toast.error(`今日进货已达上限（${dayLimit}单）${hint}`);
-      return;
-    }
+    if (!tryLock(p.id)) return; // 同步锁：连点立即拦截
+    try {
+      if (!mobileUser) { navigate('/m/login'); return; }
+      if (buyPhase !== 'active') {
+        toast.error(buyPhase === 'before'
+          ? `进货 ${config.buyStartHour}:${String(config.buyStartMinute).padStart(2,'0')} 才开始，请稍候`
+          : '本轮进货已结束，请明天再来');
+        return;
+      }
+      // 检查今日进货数限制（主场阶梯：0人→0单；N人(正式商家)→N+1单，封顶 maxPerDay 单）
+      const bjTodayStart2 = new Date(Math.floor((Date.now() + 8 * 3600000) / 86400000) * 86400000 - 8 * 3600000).toISOString();
+      const [{ count: todayCnt }, { data: referredUsers2 }] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true })
+          .eq('buyer_id', mobileUser.id).gte('created_at', bjTodayStart2),
+        supabase.from('users').select('id').eq('referrer_id', mobileUser.id),
+      ]);
+      const referredIds2 = (referredUsers2 ?? []).map((u: { id: string }) => u.id);
+      // 主场阶梯依据：被推荐人总数（不管是否完成订单交易都计算）
+      const rc = referredIds2.length;
+      // 体验商家主场无法购买
+      if (mobileUser.merchant_type !== 'regular') {
+        toast.error('体验商家无法参与主场进货，请先推广商家升级为正式商家');
+        return;
+      }
+      // 阶梯计算：0人→0单；N人→N+1单，封顶 maxPerDay 单
+      const dayLimit = rc === 0 ? 0 : Math.min(rc + 1, maxPerDay);
+      if (dayLimit === 0) {
+        toast.error('主场进货需至少推荐 1 位好友才可参与');
+        return;
+      }
+      if ((todayCnt ?? 0) >= dayLimit) {
+        const hint = rc < maxPerDay - 1 ? `，推荐更多好友可提升上限（最多${maxPerDay}单）` : '';
+        toast.error(`今日进货已达上限（${dayLimit}单）${hint}`);
+        return;
+      }
 
-    setBuying(p.id);
-    const { error } = await supabase.from('orders').insert({
-      buyer_id: mobileUser.id,
-      product_id: p.id,
-      amount: p.consignment_price,
-      status: 'pending_payment',
-      order_no: `ORD${Date.now()}`,
-    });
-    setBuying(null);
-    if (error) { toast.error('抢拍失败，请重试'); return; }
-    setPurchasedIds(prev => new Set([...prev, p.id]));
-    toast.success('抢拍成功！请尽快上传付款凭证');
-    await supabase.from('products').update({ is_active: false }).eq('id', p.id);
+      const { error } = await supabase.from('orders').insert({
+        buyer_id: mobileUser.id,
+        product_id: p.id,
+        amount: p.consignment_price,
+        status: 'pending_payment',
+        order_no: `ORD${Date.now()}`,
+      });
+      if (error) { toast.error('抢拍失败，请重试'); return; }
+      setPurchasedIds(prev => new Set([...prev, p.id]));
+      toast.success('抢拍成功！请尽快上传付款凭证');
+      await supabase.from('products').update({ is_active: false }).eq('id', p.id);
+    } finally {
+      unlock(p.id);
+    }
   }
 
   const filtered = products.filter(p => {
@@ -505,7 +509,7 @@ export default function MMarketPage() {
               {filtered.map(p => {
                 const img = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
                 const isHot = p.generation > 1;
-                const isBuying = buying === p.id;
+                const isBuying = isPending(p.id);
                 const isPurchased = purchasedIds.has(p.id);
                 const isPreheating = isOpen && buyPhase === 'before';
                 const notActive = buyPhase !== 'active';

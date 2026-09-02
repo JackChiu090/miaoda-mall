@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
+import { useSubmitLock } from '@/hooks/use-submit-lock';
 import { Upload, CheckCircle, Clock, XCircle, ScanLine, Camera, ImagePlus } from 'lucide-react';
 import MobileHeader from '@/components/mobile/MobileHeader';
 
@@ -73,7 +74,8 @@ export default function MAuthPage() {
   const [ocrFailed, setOcrFailed] = useState(false);   // OCR 识别失败标记
   const [ocrNotConfigured, setOcrNotConfigured] = useState(false); // OCR 服务未配置
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
+  const { tryLock, unlock, isPending } = useSubmitLock();
+  const submitting = isPending('kyc');
 
   // 正面：拍照 / 相册，背面：拍照 / 相册
   const frontCameraRef = useRef<HTMLInputElement>(null);
@@ -153,7 +155,7 @@ export default function MAuthPage() {
     if (!frontFile)                    { toast.error('请上传证件正面照片'); return; }
     if (!backFile)                     { toast.error('请上传证件背面照片'); return; }
 
-    setSubmitting(true);
+    if (!tryLock('kyc')) return;
     setUploadProgress(5);
     try {
       setUploadProgress(20);
@@ -180,7 +182,7 @@ export default function MAuthPage() {
     } catch (e: any) {
       toast.error('提交失败：' + (e?.message ?? '请重试'));
     } finally {
-      setSubmitting(false);
+      unlock('kyc');
       setTimeout(() => setUploadProgress(0), 800);
     }
   };
